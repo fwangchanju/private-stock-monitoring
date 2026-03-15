@@ -18,8 +18,8 @@ services:
     ports:
       - "8080:8080"
     networks:
-      - ptas-network
+      - backend
 
 networks:
-  ptas-network:
+  backend:
     external: true
