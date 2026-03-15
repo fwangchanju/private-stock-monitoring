@@ -4,6 +4,9 @@ set -e
 COMPOSE_FILE="$(dirname "$0")/docker-compose.yml"
 ENV_FILE="$HOME/env/.env"
 
+echo "=== Logging in to GHCR ==="
+echo "$CR_PAT" | docker login ghcr.io -u fwangchanju --password-stdin
+
 echo "=== Pulling latest image ==="
 docker pull ghcr.io/fwangchanju/psms:latest
 
