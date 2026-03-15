@@ -1,6 +1,6 @@
 services:
   psmsapp:
-    image: ghcr.io/fwangchanju/private-stock-monitoring:latest
+    image: ghcr.io/fwangchanju/psms:latest
     container_name: psmsapp
     restart: always
     environment:

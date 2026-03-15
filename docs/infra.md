@@ -212,5 +212,11 @@ deploy@amd-ubuntu22-04:\~/infra/db$
 
 
 
+## Docker 이미지 이름 규칙
 
+GHCR 이미지명은 `psms` 로 통일한다.
+
+- 확정 이미지: `ghcr.io/fwangchanju/psms:latest`
+- 이전 이미지명 `ghcr.io/fwangchanju/private-stock-monitoring:latest` 는 더 이상 사용하지 않음
+- 1번 서버에서 기존 컨테이너 교체 시 이전 이미지는 `docker rmi` 로 정리
 

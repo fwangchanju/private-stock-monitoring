@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-IMAGE=ghcr.io/fwangchanju/private-stock-monitoring:latest
+IMAGE=ghcr.io/fwangchanju/psms:latest
 
 echo "=== Building Docker image ==="
 docker build -t $IMAGE .
