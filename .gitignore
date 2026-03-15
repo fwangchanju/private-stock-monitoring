@@ -35,3 +35,10 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### local gradle home ###
+.gradle-user-home/
+
+### env files ###
+.env
+deploy/.env

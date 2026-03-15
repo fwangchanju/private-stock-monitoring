@@ -1,0 +1,25 @@
+services:
+  psmsapp:
+    image: ghcr.io/fwangchanju/private-stock-monitoring:latest
+    container_name: psmsapp
+    restart: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - KIWOOM_APP_KEY=${KIWOOM_APP_KEY}
+      - KIWOOM_SECRET=${KIWOOM_SECRET}
+      - DASHBOARD_BASE_URL=${DASHBOARD_BASE_URL}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+    ports:
+      - "8080:8080"
+    networks:
+      - ptas-network
+
+networks:
+  ptas-network:
+    external: true
