@@ -1,0 +1,191 @@
+CREATE TABLE app_user (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    user_key VARCHAR(64) NOT NULL,
+    display_name VARCHAR(100) NOT NULL,
+    telegram_chat_id VARCHAR(100) NULL,
+    timezone VARCHAR(40) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_app_user PRIMARY KEY (id),
+    CONSTRAINT uk_app_user_user_key UNIQUE (user_key)
+);
+
+CREATE TABLE user_notification_setting (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    reminder_enabled BOOLEAN NOT NULL,
+    reminder_time TIME NOT NULL,
+    timezone VARCHAR(40) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_user_notification_setting PRIMARY KEY (id),
+    CONSTRAINT uk_user_notification_setting_user UNIQUE (user_id),
+    CONSTRAINT fk_user_notification_setting_user FOREIGN KEY (user_id) REFERENCES app_user (id)
+);
+
+CREATE TABLE stock_master (
+    stock_code VARCHAR(20) NOT NULL,
+    stock_name VARCHAR(100) NOT NULL,
+    market_type VARCHAR(20) NOT NULL,
+    active BOOLEAN NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_stock_master PRIMARY KEY (stock_code)
+);
+
+CREATE TABLE watch_stock (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    stock_code VARCHAR(20) NOT NULL,
+    display_order INT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_watch_stock PRIMARY KEY (id),
+    CONSTRAINT uk_watch_stock_user_stock UNIQUE (user_id, stock_code),
+    CONSTRAINT fk_watch_stock_user FOREIGN KEY (user_id) REFERENCES app_user (id),
+    CONSTRAINT fk_watch_stock_stock FOREIGN KEY (stock_code) REFERENCES stock_master (stock_code)
+);
+
+CREATE TABLE market_overview (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    market_type VARCHAR(20) NOT NULL,
+    snapshot_time TIMESTAMP NOT NULL,
+    last_collected_at TIMESTAMP NOT NULL,
+    market_status VARCHAR(30) NOT NULL,
+    index_value DECIMAL(19,4) NOT NULL,
+    change_value DECIMAL(19,4) NOT NULL,
+    change_rate DECIMAL(9,4) NOT NULL,
+    trading_value DECIMAL(19,2) NOT NULL,
+    advancers INT NOT NULL,
+    decliners INT NOT NULL,
+    unchanged_count INT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_market_overview PRIMARY KEY (id),
+    CONSTRAINT uk_market_overview_market_type UNIQUE (market_type)
+);
+
+CREATE TABLE market_overview_snapshot (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    market_type VARCHAR(20) NOT NULL,
+    snapshot_time TIMESTAMP NOT NULL,
+    last_collected_at TIMESTAMP NOT NULL,
+    market_status VARCHAR(30) NOT NULL,
+    index_value DECIMAL(19,4) NOT NULL,
+    change_value DECIMAL(19,4) NOT NULL,
+    change_rate DECIMAL(9,4) NOT NULL,
+    trading_value DECIMAL(19,2) NOT NULL,
+    advancers INT NOT NULL,
+    decliners INT NOT NULL,
+    unchanged_count INT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_market_overview_snapshot PRIMARY KEY (id),
+    CONSTRAINT uk_market_overview_snapshot UNIQUE (market_type, snapshot_time)
+);
+
+CREATE TABLE investor_trading_summary (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    market_type VARCHAR(20) NOT NULL,
+    investor_type VARCHAR(20) NOT NULL,
+    snapshot_time TIMESTAMP NOT NULL,
+    last_collected_at TIMESTAMP NOT NULL,
+    buy_amount DECIMAL(19,2) NOT NULL,
+    sell_amount DECIMAL(19,2) NOT NULL,
+    net_buy_amount DECIMAL(19,2) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_investor_trading_summary PRIMARY KEY (id),
+    CONSTRAINT uk_investor_trading_summary UNIQUE (market_type, investor_type)
+);
+
+CREATE TABLE investor_trading_summary_snapshot (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    market_type VARCHAR(20) NOT NULL,
+    investor_type VARCHAR(20) NOT NULL,
+    snapshot_time TIMESTAMP NOT NULL,
+    last_collected_at TIMESTAMP NOT NULL,
+    buy_amount DECIMAL(19,2) NOT NULL,
+    sell_amount DECIMAL(19,2) NOT NULL,
+    net_buy_amount DECIMAL(19,2) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_investor_trading_summary_snapshot PRIMARY KEY (id),
+    CONSTRAINT uk_investor_trading_summary_snapshot UNIQUE (market_type, investor_type, snapshot_time)
+);
+
+CREATE TABLE intraday_investor_ranking_snapshot (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    market_type VARCHAR(20) NOT NULL,
+    investor_type VARCHAR(20) NOT NULL,
+    ranking_type VARCHAR(20) NOT NULL,
+    rank_no INT NOT NULL,
+    stock_code VARCHAR(20) NOT NULL,
+    stock_name VARCHAR(100) NOT NULL,
+    net_buy_amount DECIMAL(19,2) NOT NULL,
+    traded_volume BIGINT NOT NULL,
+    snapshot_time TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_intraday_investor_ranking_snapshot PRIMARY KEY (id),
+    CONSTRAINT fk_intraday_investor_ranking_stock FOREIGN KEY (stock_code) REFERENCES stock_master (stock_code)
+);
+
+CREATE TABLE program_trading_ranking_snapshot (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    ranking_type VARCHAR(20) NOT NULL,
+    rank_no INT NOT NULL,
+    stock_code VARCHAR(20) NOT NULL,
+    stock_name VARCHAR(100) NOT NULL,
+    program_buy_amount DECIMAL(19,2) NOT NULL,
+    program_sell_amount DECIMAL(19,2) NOT NULL,
+    program_net_buy_amount DECIMAL(19,2) NOT NULL,
+    snapshot_time TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_program_trading_ranking_snapshot PRIMARY KEY (id),
+    CONSTRAINT fk_program_trading_ranking_stock FOREIGN KEY (stock_code) REFERENCES stock_master (stock_code)
+);
+
+CREATE TABLE program_trading_history (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    stock_code VARCHAR(20) NOT NULL,
+    snapshot_time TIMESTAMP NOT NULL,
+    program_buy_amount DECIMAL(19,2) NOT NULL,
+    program_sell_amount DECIMAL(19,2) NOT NULL,
+    program_net_buy_amount DECIMAL(19,2) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_program_trading_history PRIMARY KEY (id),
+    CONSTRAINT uk_program_trading_history UNIQUE (stock_code, snapshot_time),
+    CONSTRAINT fk_program_trading_history_stock FOREIGN KEY (stock_code) REFERENCES stock_master (stock_code)
+);
+
+CREATE TABLE short_selling_history (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    stock_code VARCHAR(20) NOT NULL,
+    trade_date DATE NOT NULL,
+    short_volume BIGINT NOT NULL,
+    short_amount DECIMAL(19,2) NOT NULL,
+    short_ratio DECIMAL(9,4) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_short_selling_history PRIMARY KEY (id),
+    CONSTRAINT uk_short_selling_history UNIQUE (stock_code, trade_date),
+    CONSTRAINT fk_short_selling_history_stock FOREIGN KEY (stock_code) REFERENCES stock_master (stock_code)
+);
+
+CREATE TABLE index_contribution_ranking_snapshot (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    market_type VARCHAR(20) NOT NULL,
+    rank_no INT NOT NULL,
+    stock_code VARCHAR(20) NOT NULL,
+    stock_name VARCHAR(100) NOT NULL,
+    contribution_score DECIMAL(19,4) NOT NULL,
+    price_change_rate DECIMAL(9,4) NOT NULL,
+    snapshot_time TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_index_contribution_ranking_snapshot PRIMARY KEY (id),
+    CONSTRAINT fk_index_contribution_ranking_stock FOREIGN KEY (stock_code) REFERENCES stock_master (stock_code)
+);
+
+CREATE INDEX idx_market_overview_snapshot_time ON market_overview_snapshot (snapshot_time);
+CREATE INDEX idx_investor_trading_summary_snapshot_time ON investor_trading_summary_snapshot (snapshot_time);
+CREATE INDEX idx_intraday_investor_ranking_snapshot_time ON intraday_investor_ranking_snapshot (snapshot_time);
+CREATE INDEX idx_program_trading_ranking_snapshot_time ON program_trading_ranking_snapshot (snapshot_time);
+CREATE INDEX idx_program_trading_history_stock_time ON program_trading_history (stock_code, snapshot_time DESC);
+CREATE INDEX idx_short_selling_history_stock_date ON short_selling_history (stock_code, trade_date DESC);
+CREATE INDEX idx_index_contribution_ranking_snapshot_time ON index_contribution_ranking_snapshot (snapshot_time);
