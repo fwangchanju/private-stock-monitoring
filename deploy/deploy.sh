@@ -2,7 +2,7 @@
 set -e
 
 COMPOSE_FILE="$(dirname "$0")/docker-compose.yml"
-ENV_FILE="$HOME/env/.env"
+ENV_FILE="$HOME/env/private-stock-monitoring.env"
 
 echo "=== Logging in to GHCR ==="
 echo "$CR_PAT" | docker login ghcr.io -u fwangchanju --password-stdin
