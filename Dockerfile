@@ -8,6 +8,7 @@ COPY src src
 RUN chmod +x gradlew && ./gradlew bootJar -x test --no-daemon
 
 FROM eclipse-temurin:21-jre-jammy
+LABEL org.opencontainers.image.source=https://github.com/fwangchanju/private-stock-monitoring
 WORKDIR /app
 COPY --from=builder /build/build/libs/*.jar app.jar
 ENTRYPOINT ["java", "-Xmx512m", "-jar", "app.jar"]
