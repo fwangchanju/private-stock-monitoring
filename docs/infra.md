@@ -1,222 +1,107 @@
-오라클 프리티어 AMD 서버 2대 가동 중.
+# 인프라 구성
 
+## 서버 구성
 
+Oracle Free Tier AMD 서버 2대.
 
-1번 서버를 앱 운영 서버로 계획 중이고, 1번 서버에서 스프링 도커 빌드까지 하는것은 무리라고 판단.
+- **1번 서버**: 앱 운영 서버. psmsapp, mariadb, nginx 컨테이너 운영.
+- **2번 서버**: 빌드 서버. Docker 이미지 빌드 후 GHCR push.
 
-2번 서버에서 도커 이미지 빌드 후 깃허브에 push.
+1번 서버에서 Spring Boot 빌드까지 하는 건 메모리 부족으로 무리. 빌드는 2번에서 수행.
 
-1번 서버에서 이미지 pull 후 기존 인스턴스 내리고 새로운 이미지로 인스턴스 생성하여 기동하는 방식
+**서버 스펙 (1번 기준)**
+- 디스크: 49GB (사용 중 약 9GB)
+- 메모리: 956MB RAM / Swap 4GB
 
-깃허브 액션을 통한 자동화 구현은 아직, GHCR 을 통한 이미지 push \& pull 에 대한 테스트는 완료.
+---
 
+## 배포 흐름
 
+1. 2번 서버에서 `deploy/build-and-push.sh` 실행 → Docker 이미지 빌드 → GHCR push
+2. 1번 서버에서 `deploy/deploy.sh` 실행 → 이미지 pull → 컨테이너 재생성
 
-서버 스펙
+GitHub Actions 자동화는 미적용. 현재는 수동 배포.
 
-deploy@amd-ubuntu22-04:\~/env$ df -h
+---
 
-Filesystem      Size  Used Avail Use% Mounted on
-
-tmpfs            96M  1.3M   95M   2% /run
-
-efivarfs        256K   17K  235K   7% /sys/firmware/efi/efivars
-
-/dev/sda1        49G  9.3G   40G  20% /
-
-tmpfs           479M     0  479M   0% /dev/shm
-
-tmpfs           5.0M     0  5.0M   0% /run/lock
-
-/dev/sda15      105M  6.1M   99M   6% /boot/efi
-
-tmpfs            96M  4.0K   96M   1% /run/user/1001
-
-deploy@amd-ubuntu22-04:\~/env$
-
-deploy@amd-ubuntu22-04:\~/env$ free -h
-
-&#x20;              total        used        free      shared  buff/cache   available
-
-Mem:           956Mi       397Mi       129Mi       0.0Ki       429Mi       399Mi
-
-Swap:          4.0Gi       352Mi       3.7Gi
-
-deploy@amd-ubuntu22-04:\~/env$
-
-
-
-DB 관련 컴포즈 설정
-
-redis 는 이전 작업에서 필요하여 추가함. 현재는 사용하지 않는 상태.
-
-deploy@amd-ubuntu22-04:\~/infra/db$ cat docker-compose.yml
-
-version: '3.8'
-
-
-
-services:
-
-&#x20; mariadb:
-
-&#x20;   image: mariadb:10.6
-
-&#x20;   container\_name: mariadb
-
-&#x20;   restart: always
-
-&#x20;   environment:
-
-&#x20;     - MARIADB\_ROOT\_PASSWORD=${MARIADB\_ROOT\_PASSWORD}
-
-&#x20;     - MARIADB\_DATABASE=ptasdb
-
-&#x20;     - MARIADB\_USER=ptasapp
-
-&#x20;     - MARIADB\_PASSWORD=${MARIADB\_PASSWORD}
-
-&#x20;     - TZ=Asia/Seoul
-
-&#x20;   command: \[
-
-&#x20;     "mysqld",
-
-&#x20;     "--innodb-buffer-pool-size=128M",
-
-&#x20;     "--innodb-log-buffer-size=16M",
-
-&#x20;     "--max-connections=20",
-
-
-
-&#x20;     "--tmp-table-size=32M",
-
-&#x20;     "--max-heap-table-size=32M",
-
-
-
-&#x20;     "--sort-buffer-size=1M",
-
-&#x20;     "--join-buffer-size=1M",
-
-&#x20;     "--read-buffer-size=1M",
-
-&#x20;     "--read-rnd-buffer-size=1M",
-
-
-
-&#x20;     "--table-open-cache=200",
-
-&#x20;     "--thread-cache-size=16",
-
-
-
-&#x20;     "--skip-name-resolve"
-
-&#x20;   ]
-
-&#x20;   ports:
-
-&#x20;     - "3306:3306"
-
-&#x20;   volumes:
-
-&#x20;     - ./maria\_data:/var/lib/mysql
-
-&#x20;   networks:
-
-&#x20;     - ptas-network
-
-&#x20;   healthcheck:
-
-&#x20;     test: \["CMD", "mariadb-admin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MARIADB\_ROOT\_PASSWORD}"]
-
-&#x20;     interval: 10s
-
-&#x20;     timeout: 5s
-
-&#x20;     retries: 10
-
-
-
-&#x20; redis:
-
-&#x20;   image: redis:7.2
-
-&#x20;   container\_name: redis
-
-&#x20;   restart: always
-
-&#x20;   environment:
-
-&#x20;     - TZ=Asia/Seoul
-
-&#x20;   ports:
-
-&#x20;     - "6379:6379"
-
-&#x20;   volumes:
-
-&#x20;     - ./redis\_data:/data
-
-&#x20;   command: \[
-
-&#x20;     "redis-server",
-
-&#x20;     "--save", "",
-
-&#x20;     "--appendonly", "no",
-
-&#x20;     "--maxmemory", "128mb",
-
-&#x20;     "--maxmemory-policy", "allkeys-lru"
-
-&#x20;   ]
-
-&#x20;   networks:
-
-&#x20;     - ptas-network
-
-&#x20;   healthcheck:
-
-&#x20;     test: \["CMD", "redis-cli", "ping"]
-
-&#x20;     interval: 10s
-
-&#x20;     timeout: 3s
-
-&#x20;     retries: 10
-
-
-
-networks:
-
-&#x20; ptas-network:
-
-&#x20;   external: true
-
-
-
-도커 프로세스 현황
-
-deploy@amd-ubuntu22-04:\~/infra/db$ docker ps
-
-CONTAINER ID   IMAGE                                                 COMMAND                  CREATED      STATUS                PORTS                                         NAMES
-
-dc622129d7a4   ghcr.io/fwangchanju/private-stock-monitoring:latest   "java -jar app.jar"      2 days ago   Up 6 seconds          0.0.0.0:8080->8080/tcp, \[::]:8080->8080/tcp   psmsapp
-
-d7aef4638bac   mariadb:10.6                                          "docker-entrypoint.s…"   4 days ago   Up 4 days (healthy)   0.0.0.0:3306->3306/tcp, \[::]:3306->3306/tcp   mariadb
-
-deploy@amd-ubuntu22-04:\~/infra/db$
-
-
-
-## Docker 이미지 이름 규칙
-
-GHCR 이미지명은 `psms` 로 통일한다.
+## Docker 이미지
 
 - 확정 이미지: `ghcr.io/fwangchanju/psms:latest`
-- 이전 이미지명 `ghcr.io/fwangchanju/private-stock-monitoring:latest` 는 더 이상 사용하지 않음
-- 1번 서버에서 기존 컨테이너 교체 시 이전 이미지는 `docker rmi` 로 정리
+- 레지스트리: GHCR (GitHub Container Registry)
 
+---
+
+## 서버 디렉토리 구조
+
+```
+~/app/
+  private-stock-monitoring/   ← 레포 clone 위치
+    deploy/
+      docker-compose.yml      ← psmsapp 컨테이너
+      nginx/
+        nginx.conf            ← nginx 설정 (레포에서 버전 관리)
+      build-and-push.sh
+      deploy.sh
+
+~/infra/
+  db/
+    docker-compose.yml        ← mariadb 컨테이너
+  nginx/
+    docker-compose.yml        ← nginx 컨테이너
+
+~/env/
+  private-stock-monitoring.env  ← 비밀값 환경변수 파일
+```
+
+---
+
+## Docker 네트워크
+
+- 네트워크명: `backend` (external)
+- psmsapp, mariadb, nginx 모두 같은 네트워크 사용
+
+---
+
+## 컨테이너 구성
+
+### psmsapp
+- 이미지: `ghcr.io/fwangchanju/psms:latest`
+- compose 위치: `~/app/private-stock-monitoring/deploy/docker-compose.yml`
+- 포트: 외부 미노출 (nginx 통해서만 접근)
+
+### mariadb
+- 이미지: `mariadb:10.6`
+- compose 위치: `~/infra/db/docker-compose.yml`
+- 저메모리 최적화 옵션 적용 (innodb-buffer-pool-size=128M 등)
+- 볼륨: `./maria_data`
+
+### nginx
+- 이미지: `nginx:alpine`
+- compose 위치: `~/infra/nginx/docker-compose.yml`
+- nginx.conf: `~/app/private-stock-monitoring/deploy/nginx/nginx.conf` 마운트
+- HTTPS: Duck DNS (`eolmae.duckdns.org`) + Let's Encrypt (Certbot)
+- Basic Auth 적용 (`/etc/nginx/.htpasswd`)
+
+---
+
+## 환경변수 파일
+
+위치: `~/env/private-stock-monitoring.env`
+
+비밀값만 관리. 나머지는 `application-prod.properties`에 하드코딩.
+
+```
+DB_APP_PASSWD=
+DB_ADM_PASSWD=
+KIWOOM_APP_KEY=
+KIWOOM_SECRET=
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+```
+
+---
+
+## DB 계정
+
+- `psmsadm`: Flyway 마이그레이션 전용 (DDL 권한)
+- `psmsapp`: 앱 런타임 전용 (SELECT, INSERT, UPDATE, DELETE)
