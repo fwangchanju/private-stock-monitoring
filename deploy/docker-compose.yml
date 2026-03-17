@@ -11,8 +11,8 @@ services:
       - KIWOOM_SECRET=${KIWOOM_SECRET}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     networks:
       - backend
 
