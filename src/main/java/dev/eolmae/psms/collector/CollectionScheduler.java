@@ -1,0 +1,87 @@
+package dev.eolmae.psms.collector;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class CollectionScheduler {
+
+	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+
+	private final MarketOverviewCollector marketOverviewCollector;
+	private final InvestorTradingSummaryCollector investorTradingSummaryCollector;
+	private final IntradayInvestorRankingCollector intradayInvestorRankingCollector;
+	private final IndexContributionRankingCollector indexContributionRankingCollector;
+	private final ProgramTradingCollector programTradingCollector;
+	private final ShortSellingCollector shortSellingCollector;
+	private final StockMasterCollector stockMasterCollector;
+
+	/**
+	 * 장중 시장 데이터 수집: 평일 09:00~15:30, 5분 간격
+	 * 시장 마감 후(15:35 이후)에도 1~2회 추가 실행될 수 있으나 API 응답이 그대로 오므로 무해함
+	 */
+	@Scheduled(cron = "0 */5 9-15 * * MON-FRI", zone = "Asia/Seoul")
+	public void collectMarketData() {
+		LocalDateTime snapshotTime = resolveSnapshotTime();
+		log.info("장중 시장 데이터 수집 시작: snapshotTime={}", snapshotTime);
+
+		runSafely("시장종합", () -> marketOverviewCollector.collect(snapshotTime));
+		runSafely("투자자별매매종합", () -> investorTradingSummaryCollector.collect(snapshotTime));
+		runSafely("장중투자자랭킹", () -> intradayInvestorRankingCollector.collect(snapshotTime));
+		runSafely("지수기여도랭킹", () -> indexContributionRankingCollector.collect(snapshotTime));
+		runSafely("프로그램매매", () -> programTradingCollector.collect(snapshotTime));
+
+		log.info("장중 시장 데이터 수집 완료: snapshotTime={}", snapshotTime);
+	}
+
+	/**
+	 * 공매도 데이터 수집: 평일 16:00 (장 마감 후 1회)
+	 * 공매도 데이터는 일 단위 데이터이므로 장 마감 후 1회 수집
+	 */
+	@Scheduled(cron = "0 0 16 * * MON-FRI", zone = "Asia/Seoul")
+	public void collectShortSelling() {
+		LocalDate tradeDate = LocalDate.now(KST);
+		log.info("공매도 데이터 수집 시작: tradeDate={}", tradeDate);
+
+		runSafely("공매도", () -> shortSellingCollector.collect(tradeDate));
+
+		log.info("공매도 데이터 수집 완료: tradeDate={}", tradeDate);
+	}
+
+	/**
+	 * 종목 마스터 동기화: 평일 07:00 (장 시작 전)
+	 */
+	@Scheduled(cron = "0 0 7 * * MON-FRI", zone = "Asia/Seoul")
+	public void syncStockMaster() {
+		log.info("종목 마스터 동기화 시작");
+
+		runSafely("종목마스터", stockMasterCollector::sync);
+
+		log.info("종목 마스터 동기화 완료");
+	}
+
+	/**
+	 * snapshotTime: 현재 시각을 5분 단위로 내림 처리한 논리적 기준 시각
+	 * 예) 09:07:32 → 09:05:00 / 10:00:12 → 10:00:00
+	 */
+	private LocalDateTime resolveSnapshotTime() {
+		LocalDateTime now = LocalDateTime.now(KST);
+		int minute = (now.getMinute() / 5) * 5;
+		return now.withMinute(minute).withSecond(0).withNano(0);
+	}
+
+	private void runSafely(String collectorName, Runnable task) {
+		try {
+			task.run();
+		} catch (Exception e) {
+			log.error("수집기 실행 실패: collector={}", collectorName, e);
+		}
+	}
+}
