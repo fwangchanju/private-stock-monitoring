@@ -1,11 +1,19 @@
 package dev.eolmae.psms.api;
 
 import dev.eolmae.psms.api.dto.DashboardResponse;
+import dev.eolmae.psms.api.dto.IndexContributionItem;
+import dev.eolmae.psms.api.dto.IntradayInvestorRankingItem;
 import dev.eolmae.psms.api.dto.NotificationSettingResponse;
 import dev.eolmae.psms.api.dto.ProgramTradingHistoryItem;
+import dev.eolmae.psms.api.dto.ProgramTradingRankingItem;
 import dev.eolmae.psms.api.dto.ShortSellingHistoryItem;
+import dev.eolmae.psms.api.dto.SnapshotResponse;
 import dev.eolmae.psms.api.dto.StockHistoryResponse;
 import dev.eolmae.psms.api.dto.WatchStockItem;
+import dev.eolmae.psms.domain.common.IntradayRankingType;
+import dev.eolmae.psms.domain.common.InvestorType;
+import dev.eolmae.psms.domain.common.MarketType;
+import dev.eolmae.psms.domain.common.ProgramRankingType;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -26,20 +34,57 @@ public class PsmsController {
 		this.psmsQueryService = psmsQueryService;
 	}
 
+	// ── 메인 대시보드 ─────────────────────────────────────────────────────
+
 	@GetMapping("/dashboard")
 	public DashboardResponse getDashboard() {
 		return psmsQueryService.getDashboard();
 	}
+
+	// ── 장중 투자자별 매매 상위 상세 ─────────────────────────────────────────
+
+	@GetMapping("/intraday-rankings")
+	public SnapshotResponse<IntradayInvestorRankingItem> getIntradayRankings(
+		@RequestParam MarketType market,
+		@RequestParam InvestorType investor,
+		@RequestParam IntradayRankingType ranking
+	) {
+		return psmsQueryService.getIntradayRankings(market, investor, ranking);
+	}
+
+	// ── 프로그램매매 상위 상세 ────────────────────────────────────────────
+
+	@GetMapping("/program-trading-rankings")
+	public SnapshotResponse<ProgramTradingRankingItem> getProgramTradingRankings(
+		@RequestParam ProgramRankingType ranking
+	) {
+		return psmsQueryService.getProgramTradingRankings(ranking);
+	}
+
+	// ── 지수 기여도 상위 상세 ─────────────────────────────────────────────
+
+	@GetMapping("/index-contribution")
+	public SnapshotResponse<IndexContributionItem> getIndexContribution(
+		@RequestParam MarketType market
+	) {
+		return psmsQueryService.getIndexContribution(market);
+	}
+
+	// ── 관심종목 ─────────────────────────────────────────────────────────
 
 	@GetMapping("/watch-stocks")
 	public List<WatchStockItem> getWatchStocks() {
 		return psmsQueryService.getWatchStocks();
 	}
 
+	// ── 사용자 설정 ───────────────────────────────────────────────────────
+
 	@GetMapping("/user-settings/default")
 	public NotificationSettingResponse getDefaultUserSetting() {
 		return psmsQueryService.getNotificationSetting();
 	}
+
+	// ── 종목별 이력 ───────────────────────────────────────────────────────
 
 	@GetMapping("/stocks/{stockCode}/program-trading")
 	public StockHistoryResponse<ProgramTradingHistoryItem> getProgramTradingHistory(
