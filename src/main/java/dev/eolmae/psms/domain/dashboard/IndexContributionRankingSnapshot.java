@@ -49,4 +49,20 @@ public class IndexContributionRankingSnapshot {
 
 	protected IndexContributionRankingSnapshot() {
 	}
+
+	public static IndexContributionRankingSnapshot create(MarketType marketType, int rank,
+		String stockCode, String stockName,
+		BigDecimal contributionScore, BigDecimal priceChangeRate,
+		LocalDateTime snapshotTime) {
+		var entity = new IndexContributionRankingSnapshot();
+		entity.marketType = marketType;
+		entity.rank = rank;
+		entity.stockCode = stockCode;
+		entity.stockName = stockName;
+		entity.contributionScore = contributionScore;
+		entity.priceChangeRate = priceChangeRate;
+		entity.snapshotTime = snapshotTime;
+		entity.createdAt = LocalDateTime.now();
+		return entity;
+	}
 }

@@ -54,4 +54,30 @@ public class InvestorTradingSummary {
 
 	protected InvestorTradingSummary() {
 	}
+
+	public static InvestorTradingSummary create(MarketType marketType, InvestorType investorType,
+		LocalDateTime snapshotTime, LocalDateTime lastCollectedAt,
+		BigDecimal buyAmount, BigDecimal sellAmount, BigDecimal netBuyAmount) {
+		var entity = new InvestorTradingSummary();
+		entity.marketType = marketType;
+		entity.investorType = investorType;
+		entity.snapshotTime = snapshotTime;
+		entity.lastCollectedAt = lastCollectedAt;
+		entity.buyAmount = buyAmount;
+		entity.sellAmount = sellAmount;
+		entity.netBuyAmount = netBuyAmount;
+		entity.createdAt = LocalDateTime.now();
+		entity.updatedAt = LocalDateTime.now();
+		return entity;
+	}
+
+	public void update(LocalDateTime snapshotTime, LocalDateTime lastCollectedAt,
+		BigDecimal buyAmount, BigDecimal sellAmount, BigDecimal netBuyAmount) {
+		this.snapshotTime = snapshotTime;
+		this.lastCollectedAt = lastCollectedAt;
+		this.buyAmount = buyAmount;
+		this.sellAmount = sellAmount;
+		this.netBuyAmount = netBuyAmount;
+		this.updatedAt = LocalDateTime.now();
+	}
 }

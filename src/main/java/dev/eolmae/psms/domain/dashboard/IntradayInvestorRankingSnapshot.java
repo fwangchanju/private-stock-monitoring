@@ -59,4 +59,21 @@ public class IntradayInvestorRankingSnapshot {
 
 	protected IntradayInvestorRankingSnapshot() {
 	}
+
+	public static IntradayInvestorRankingSnapshot create(MarketType marketType, InvestorType investorType,
+		IntradayRankingType rankingType, int rank, String stockCode, String stockName,
+		BigDecimal netBuyAmount, long tradedVolume, LocalDateTime snapshotTime) {
+		var entity = new IntradayInvestorRankingSnapshot();
+		entity.marketType = marketType;
+		entity.investorType = investorType;
+		entity.rankingType = rankingType;
+		entity.rank = rank;
+		entity.stockCode = stockCode;
+		entity.stockName = stockName;
+		entity.netBuyAmount = netBuyAmount;
+		entity.tradedVolume = tradedVolume;
+		entity.snapshotTime = snapshotTime;
+		entity.createdAt = LocalDateTime.now();
+		return entity;
+	}
 }

@@ -40,4 +40,16 @@ public class ShortSellingHistory {
 
 	protected ShortSellingHistory() {
 	}
+
+	public static ShortSellingHistory create(String stockCode, LocalDate tradeDate,
+		long shortVolume, BigDecimal shortAmount, BigDecimal shortRatio) {
+		var entity = new ShortSellingHistory();
+		entity.stockCode = stockCode;
+		entity.tradeDate = tradeDate;
+		entity.shortVolume = shortVolume;
+		entity.shortAmount = shortAmount;
+		entity.shortRatio = shortRatio;
+		entity.createdAt = LocalDateTime.now();
+		return entity;
+	}
 }

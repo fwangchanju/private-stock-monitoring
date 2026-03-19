@@ -37,4 +37,27 @@ public class StockMaster {
 
 	protected StockMaster() {
 	}
+
+	public static StockMaster create(String stockCode, String stockName, MarketType marketType) {
+		var entity = new StockMaster();
+		entity.stockCode = stockCode;
+		entity.stockName = stockName;
+		entity.marketType = marketType;
+		entity.active = true;
+		entity.createdAt = LocalDateTime.now();
+		entity.updatedAt = LocalDateTime.now();
+		return entity;
+	}
+
+	public void update(String stockName, MarketType marketType) {
+		this.stockName = stockName;
+		this.marketType = marketType;
+		this.active = true;
+		this.updatedAt = LocalDateTime.now();
+	}
+
+	public void markInactive() {
+		this.active = false;
+		this.updatedAt = LocalDateTime.now();
+	}
 }

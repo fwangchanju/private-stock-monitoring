@@ -51,4 +51,17 @@ public class InvestorTradingSummarySnapshot {
 
 	protected InvestorTradingSummarySnapshot() {
 	}
+
+	public static InvestorTradingSummarySnapshot from(InvestorTradingSummary summary) {
+		var entity = new InvestorTradingSummarySnapshot();
+		entity.marketType = summary.getMarketType();
+		entity.investorType = summary.getInvestorType();
+		entity.snapshotTime = summary.getSnapshotTime();
+		entity.lastCollectedAt = summary.getLastCollectedAt();
+		entity.buyAmount = summary.getBuyAmount();
+		entity.sellAmount = summary.getSellAmount();
+		entity.netBuyAmount = summary.getNetBuyAmount();
+		entity.createdAt = LocalDateTime.now();
+		return entity;
+	}
 }

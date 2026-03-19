@@ -61,4 +61,21 @@ public class MarketOverviewSnapshot {
 
 	protected MarketOverviewSnapshot() {
 	}
+
+	public static MarketOverviewSnapshot from(MarketOverview overview) {
+		var entity = new MarketOverviewSnapshot();
+		entity.marketType = overview.getMarketType();
+		entity.snapshotTime = overview.getSnapshotTime();
+		entity.lastCollectedAt = overview.getLastCollectedAt();
+		entity.marketStatus = overview.getMarketStatus();
+		entity.indexValue = overview.getIndexValue();
+		entity.changeValue = overview.getChangeValue();
+		entity.changeRate = overview.getChangeRate();
+		entity.tradingValue = overview.getTradingValue();
+		entity.advancers = overview.getAdvancers();
+		entity.decliners = overview.getDecliners();
+		entity.unchangedCount = overview.getUnchangedCount();
+		entity.createdAt = LocalDateTime.now();
+		return entity;
+	}
 }

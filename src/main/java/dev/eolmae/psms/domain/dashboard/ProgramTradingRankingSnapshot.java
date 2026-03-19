@@ -52,4 +52,21 @@ public class ProgramTradingRankingSnapshot {
 
 	protected ProgramTradingRankingSnapshot() {
 	}
+
+	public static ProgramTradingRankingSnapshot create(ProgramRankingType rankingType, int rank,
+		String stockCode, String stockName,
+		BigDecimal programBuyAmount, BigDecimal programSellAmount, BigDecimal programNetBuyAmount,
+		LocalDateTime snapshotTime) {
+		var entity = new ProgramTradingRankingSnapshot();
+		entity.rankingType = rankingType;
+		entity.rank = rank;
+		entity.stockCode = stockCode;
+		entity.stockName = stockName;
+		entity.programBuyAmount = programBuyAmount;
+		entity.programSellAmount = programSellAmount;
+		entity.programNetBuyAmount = programNetBuyAmount;
+		entity.snapshotTime = snapshotTime;
+		entity.createdAt = LocalDateTime.now();
+		return entity;
+	}
 }

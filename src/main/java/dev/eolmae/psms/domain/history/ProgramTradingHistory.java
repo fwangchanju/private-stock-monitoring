@@ -39,4 +39,16 @@ public class ProgramTradingHistory {
 
 	protected ProgramTradingHistory() {
 	}
+
+	public static ProgramTradingHistory create(String stockCode, LocalDateTime snapshotTime,
+		BigDecimal programBuyAmount, BigDecimal programSellAmount, BigDecimal programNetBuyAmount) {
+		var entity = new ProgramTradingHistory();
+		entity.stockCode = stockCode;
+		entity.snapshotTime = snapshotTime;
+		entity.programBuyAmount = programBuyAmount;
+		entity.programSellAmount = programSellAmount;
+		entity.programNetBuyAmount = programNetBuyAmount;
+		entity.createdAt = LocalDateTime.now();
+		return entity;
+	}
 }

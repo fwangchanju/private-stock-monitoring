@@ -64,4 +64,42 @@ public class MarketOverview {
 
 	protected MarketOverview() {
 	}
+
+	public static MarketOverview create(MarketType marketType, LocalDateTime snapshotTime,
+		LocalDateTime lastCollectedAt, String marketStatus,
+		BigDecimal indexValue, BigDecimal changeValue, BigDecimal changeRate,
+		BigDecimal tradingValue, int advancers, int decliners, int unchangedCount) {
+		var entity = new MarketOverview();
+		entity.marketType = marketType;
+		entity.snapshotTime = snapshotTime;
+		entity.lastCollectedAt = lastCollectedAt;
+		entity.marketStatus = marketStatus;
+		entity.indexValue = indexValue;
+		entity.changeValue = changeValue;
+		entity.changeRate = changeRate;
+		entity.tradingValue = tradingValue;
+		entity.advancers = advancers;
+		entity.decliners = decliners;
+		entity.unchangedCount = unchangedCount;
+		entity.createdAt = LocalDateTime.now();
+		entity.updatedAt = LocalDateTime.now();
+		return entity;
+	}
+
+	public void update(LocalDateTime snapshotTime, LocalDateTime lastCollectedAt,
+		String marketStatus, BigDecimal indexValue, BigDecimal changeValue,
+		BigDecimal changeRate, BigDecimal tradingValue,
+		int advancers, int decliners, int unchangedCount) {
+		this.snapshotTime = snapshotTime;
+		this.lastCollectedAt = lastCollectedAt;
+		this.marketStatus = marketStatus;
+		this.indexValue = indexValue;
+		this.changeValue = changeValue;
+		this.changeRate = changeRate;
+		this.tradingValue = tradingValue;
+		this.advancers = advancers;
+		this.decliners = decliners;
+		this.unchangedCount = unchangedCount;
+		this.updatedAt = LocalDateTime.now();
+	}
 }
