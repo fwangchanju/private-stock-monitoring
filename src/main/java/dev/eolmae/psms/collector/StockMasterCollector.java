@@ -20,14 +20,11 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class StockMasterCollector {
 
-	// plan.md 기준: ka10095, ka10099, ka10100 (종목 목록 조회)
-	// TODO: 키움 Open API 포털에서 각 tr_id 용도 및 경로 확인 후 수정 필요
-	// ka10095: KOSPI 종목 코드 목록
-	// ka10099: KOSDAQ 종목 코드 목록
-	// ka10100: 기타 (ETF 등) - 필요 시 사용
+	// ka10099: 종목정보 리스트 (종목정보 카테고리)
+	// mrkt_tp 파라미터로 시장 구분: 0=코스피, 10=코스닥
+	// TODO: /api/dostk/stkinfo - 종목정보 카테고리 경로 추정값, 포털 확인 필요
 	private static final String API_PATH = "/api/dostk/stkinfo";
-	private static final String TR_ID_KOSPI = "ka10095";
-	private static final String TR_ID_KOSDAQ = "ka10099";
+	private static final String TR_ID = "ka10099";
 
 	private final KiwoomApiClient kiwoomApiClient;
 	private final StockMasterRepository stockMasterRepository;
@@ -36,8 +33,8 @@ public class StockMasterCollector {
 	public void sync() {
 		Set<String> fetchedCodes = new HashSet<>();
 
-		fetchedCodes.addAll(syncForMarket(MarketType.KOSPI, TR_ID_KOSPI));
-		fetchedCodes.addAll(syncForMarket(MarketType.KOSDAQ, TR_ID_KOSDAQ));
+		fetchedCodes.addAll(syncForMarket(MarketType.KOSPI, "0"));
+		fetchedCodes.addAll(syncForMarket(MarketType.KOSDAQ, "10"));
 
 		// API에서 더 이상 조회되지 않는 종목은 비활성화
 		List<StockMaster> allStocks = stockMasterRepository.findAll();
@@ -51,23 +48,28 @@ public class StockMasterCollector {
 		log.info("종목 마스터 동기화 완료: 조회 종목 수={}", fetchedCodes.size());
 	}
 
-	private Set<String> syncForMarket(MarketType marketType, String trId) {
+	private Set<String> syncForMarket(MarketType marketType, String mrktTp) {
 		Set<String> fetchedCodes = new HashSet<>();
 		try {
 			JsonNode response = kiwoomApiClient.post(
 				API_PATH,
-				trId,
-				Map.of()  // TODO: 요청 파라미터 확인 필요 (없을 수도 있음)
+				TR_ID,
+				Map.of("mrkt_tp", mrktTp)
 			);
 
-			// TODO: 응답 배열 필드명 확인 필요 (output 또는 output1)
-			JsonNode outputList = response.path("output");
+			// TODO: 응답 루트가 배열인지 또는 래퍼 필드명 확인 필요 (포털 응답 구조 확인)
+			JsonNode outputList = response.isArray() ? response : response.path("output");
 			for (JsonNode item : outputList) {
-				// TODO: 아래 필드명들은 키움 API 응답 문서 기준으로 수정 필요
-				String stockCode = KiwoomResponseParser.parseString(item, "stck_shrn_iscd");
-				String stockName = KiwoomResponseParser.parseString(item, "hts_kor_isnm");
+				String stockCode = KiwoomResponseParser.parseString(item, "code");
+				String stockName = KiwoomResponseParser.parseString(item, "name");
+				String state = KiwoomResponseParser.parseString(item, "state");
 
 				if (stockCode.isEmpty()) {
+					continue;
+				}
+
+				// state 값이 비정상인 종목 스킵 (TODO: 정상 state 값 포털 확인)
+				if ("9".equals(state)) {
 					continue;
 				}
 

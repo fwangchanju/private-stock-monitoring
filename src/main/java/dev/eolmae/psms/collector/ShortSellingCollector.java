@@ -8,6 +8,7 @@ import dev.eolmae.psms.external.kiwoom.KiwoomApiClient;
 import dev.eolmae.psms.external.kiwoom.KiwoomResponseParser;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -20,10 +21,11 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ShortSellingCollector {
 
-	// plan.md 기준: kt50075 (공매도 추이)
-	// TODO: 키움 Open API 포털에서 경로 및 tr_id 확인 후 수정 필요
-	private static final String API_PATH = "/api/dostk/stkinfo";
-	private static final String TR_ID = "kt50075";
+	// ka10014: 공매도추이요청 (공매도 카테고리)
+	// TODO: /api/dostk/shrtslng - 공매도 카테고리 경로 추정값, 포털 확인 필요
+	private static final String API_PATH = "/api/dostk/shrtslng";
+	private static final String TR_ID = "ka10014";
+	private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
 	private final KiwoomApiClient kiwoomApiClient;
 	private final ShortSellingHistoryRepository shortSellingHistoryRepository;
@@ -47,27 +49,29 @@ public class ShortSellingCollector {
 			return;
 		}
 
+		String dateStr = tradeDate.format(DATE_FMT);
+
 		JsonNode response = kiwoomApiClient.post(
 			API_PATH,
 			TR_ID,
-			Map.of("stck_shrn_iscd", stockCode)  // TODO: 파라미터명 확인 필요
+			Map.of(
+				"stk_cd", stockCode,
+				"strt_dt", dateStr,
+				"end_dt", dateStr
+			)
 		);
 
-		// TODO: 응답 구조 확인 필요. 일별 공매도 목록이면 output1 배열, 당일 단건이면 output 등
-		JsonNode outputList = response.path("output");
+		// 응답 배열: shrts_trnsn
+		JsonNode outputList = response.path("shrts_trnsn");
 		for (JsonNode item : outputList) {
-			// TODO: 아래 필드명들은 키움 API 응답 문서 기준으로 수정 필요
-			// TODO: API가 여러 날짜 데이터를 반환하는 경우 날짜 파싱 후 tradeDate 필터링 필요
-			long shortVolume = KiwoomResponseParser.parseLong(item, "sln_qty");
-			BigDecimal shortAmount = KiwoomResponseParser.parseBigDecimal(item, "sln_tr_pbmn");
-			BigDecimal shortRatio = KiwoomResponseParser.parseBigDecimal(item, "seln_tr_rt");
+			long shortVolume = KiwoomResponseParser.parseLong(item, "shrts_qty");
+			BigDecimal shortAmount = KiwoomResponseParser.parseBigDecimal(item, "shrts_trde_prica");
+			BigDecimal shortRatio = KiwoomResponseParser.parseBigDecimal(item, "trde_wght");
 
 			shortSellingHistoryRepository.save(
 				ShortSellingHistory.create(stockCode, tradeDate, shortVolume, shortAmount, shortRatio)
 			);
-
-			// 당일 데이터 하나만 저장 (API가 여러 일자를 반환하는 경우 첫 번째만)
-			break;
+			break; // 당일 데이터 첫 번째 항목만 저장
 		}
 
 		log.debug("공매도 이력 수집 완료: stockCode={}, tradeDate={}", stockCode, tradeDate);

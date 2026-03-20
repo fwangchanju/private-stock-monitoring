@@ -22,11 +22,11 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class InvestorTradingSummaryCollector {
 
-	// TODO: 키움 Open API 포털에서 확인 후 수정 필요
-	// 투자자별 매매동향 API - KOSPI와 KOSDAQ 각각 호출하여 개인/외국인/기관 파싱
-	private static final String API_PATH = "/api/dostk/investratio";
-	private static final String TR_ID_KOSPI = "FHKST01010900";   // TODO: 확인 필요
-	private static final String TR_ID_KOSDAQ = "FHKST01010900";  // TODO: 확인 필요 (동일 tr_id에 파라미터로 구분하거나 별도 tr_id일 수 있음)
+	// ka10051: 업종별투자자순매수요청 (업종 카테고리)
+	// 업종코드 001(코스피종합)/101(코스닥) 기준으로 시장 전체 투자자별 순매수 조회
+	// TODO: /api/dostk/inds - 업종 카테고리 경로 추정값, 포털 확인 필요
+	private static final String API_PATH = "/api/dostk/inds";
+	private static final String TR_ID = "ka10051";
 
 	private final KiwoomApiClient kiwoomApiClient;
 	private final InvestorTradingSummaryRepository investorTradingSummaryRepository;
@@ -44,63 +44,79 @@ public class InvestorTradingSummaryCollector {
 	}
 
 	private void collectForMarket(MarketType marketType, LocalDateTime snapshotTime) {
-		// TODO: 시장구분 파라미터 값 확인 필요 (KOSPI: "0001" 또는 "J", KOSDAQ: "1001" 또는 "Q" 등)
-		String marketCode = marketType == MarketType.KOSPI ? "0001" : "1001";
-		String trId = marketType == MarketType.KOSPI ? TR_ID_KOSPI : TR_ID_KOSDAQ;
+		// mrkt_tp: 0=코스피, 1=코스닥
+		String mrktTp = marketType == MarketType.KOSPI ? "0" : "1";
 
 		JsonNode response = kiwoomApiClient.post(
 			API_PATH,
-			trId,
-			Map.of("market_code", marketCode)  // TODO: 요청 파라미터 필드명 확인 필요
+			TR_ID,
+			Map.of(
+				"mrkt_tp", mrktTp,
+				"amt_qty_tp", "0",  // 0=금액
+				"stex_tp", "1"      // 1=KRX
+			)
 		);
+
+		// 응답 배열: inds_netprps (업종별 투자자 순매수 목록)
+		// 첫 번째 항목이 종합지수(코스피/코스닥 전체) 데이터
+		// TODO: 종합지수 항목 식별 방법 확인 (inds_cd == "001" 여부 등)
+		JsonNode indsNetprpsList = response.path("inds_netprps");
+		JsonNode compositeItem = findCompositeItem(indsNetprpsList, marketType);
+		if (compositeItem == null || compositeItem.isMissingNode()) {
+			log.warn("투자자별매매종합 종합지수 항목 없음: market={}", marketType);
+			return;
+		}
 
 		LocalDateTime now = LocalDateTime.now();
 
-		// TODO: 응답 구조 확인 필요.
-		// 한 번의 API 호출로 개인/외국인/기관 전체가 오는 구조라면 output 배열에서 파싱,
-		// 투자자별로 각각 호출해야 하는 구조라면 아래 로직 변경 필요
-		JsonNode outputList = response.path("output");
-
-		for (JsonNode item : outputList) {
-			// TODO: 투자자 구분 코드 값 및 필드명 확인 필요
-			String investorCode = KiwoomResponseParser.parseString(item, "invt_obj_cls_code");
-			InvestorType investorType = mapToInvestorType(investorCode);
-			if (investorType == null) {
-				continue;
-			}
-
-			BigDecimal buyAmount = KiwoomResponseParser.parseBigDecimal(item, "buy_tr_pbmn");
-			BigDecimal sellAmount = KiwoomResponseParser.parseBigDecimal(item, "seln_tr_pbmn");
-			BigDecimal netBuyAmount = KiwoomResponseParser.parseBigDecimal(item, "ntby_tr_pbmn");
-
-			InvestorTradingSummary summary = investorTradingSummaryRepository
-				.findByMarketTypeAndInvestorType(marketType, investorType)
-				.map(existing -> {
-					existing.update(snapshotTime, now, buyAmount, sellAmount, netBuyAmount);
-					return existing;
-				})
-				.orElseGet(() -> InvestorTradingSummary.create(
-					marketType, investorType, snapshotTime, now, buyAmount, sellAmount, netBuyAmount));
-
-			investorTradingSummaryRepository.save(summary);
-
-			if (investorTradingSummarySnapshotRepository
-				.findByMarketTypeAndInvestorTypeAndSnapshotTime(marketType, investorType, snapshotTime)
-				.isEmpty()) {
-				investorTradingSummarySnapshotRepository.save(InvestorTradingSummarySnapshot.from(summary));
-			}
-		}
+		// 응답에서 순매수 금액만 제공 (매수/매도 금액은 미제공)
+		// ind_netprps=개인, frgnr_netprps=외국인, orgn_netprps=기관계
+		saveInvestorSummary(marketType, InvestorType.PERSONAL,
+			KiwoomResponseParser.parseBigDecimal(compositeItem, "ind_netprps"),
+			snapshotTime, now);
+		saveInvestorSummary(marketType, InvestorType.FOREIGNER,
+			KiwoomResponseParser.parseBigDecimal(compositeItem, "frgnr_netprps"),
+			snapshotTime, now);
+		saveInvestorSummary(marketType, InvestorType.INSTITUTION,
+			KiwoomResponseParser.parseBigDecimal(compositeItem, "orgn_netprps"),
+			snapshotTime, now);
 
 		log.debug("투자자별매매종합 수집 완료: market={}", marketType);
 	}
 
-	// TODO: 키움 API의 실제 투자자 구분 코드 값 확인 후 수정 필요
-	private InvestorType mapToInvestorType(String investorCode) {
-		return switch (investorCode) {
-			case "01" -> InvestorType.PERSONAL;       // TODO: 실제 코드 확인
-			case "04" -> InvestorType.FOREIGNER;      // TODO: 실제 코드 확인
-			case "10" -> InvestorType.INSTITUTION;    // TODO: 실제 코드 확인 (기관계 합산 코드)
-			default -> null;
-		};
+	private JsonNode findCompositeItem(JsonNode list, MarketType marketType) {
+		// TODO: 종합지수 inds_cd 값 확인 (KOSPI=001, KOSDAQ=101 추정)
+		String compositeCode = marketType == MarketType.KOSPI ? "001" : "101";
+		for (JsonNode item : list) {
+			if (compositeCode.equals(item.path("inds_cd").asText())) {
+				return item;
+			}
+		}
+		// 찾지 못하면 첫 번째 항목 사용
+		return list.size() > 0 ? list.get(0) : null;
+	}
+
+	private void saveInvestorSummary(MarketType marketType, InvestorType investorType,
+		BigDecimal netBuyAmount, LocalDateTime snapshotTime, LocalDateTime now) {
+
+		// ka10051은 순매수만 제공하므로 매수/매도는 ZERO로 저장
+		BigDecimal zero = BigDecimal.ZERO;
+
+		InvestorTradingSummary summary = investorTradingSummaryRepository
+			.findByMarketTypeAndInvestorType(marketType, investorType)
+			.map(existing -> {
+				existing.update(snapshotTime, now, zero, zero, netBuyAmount);
+				return existing;
+			})
+			.orElseGet(() -> InvestorTradingSummary.create(
+				marketType, investorType, snapshotTime, now, zero, zero, netBuyAmount));
+
+		investorTradingSummaryRepository.save(summary);
+
+		if (investorTradingSummarySnapshotRepository
+			.findByMarketTypeAndInvestorTypeAndSnapshotTime(marketType, investorType, snapshotTime)
+			.isEmpty()) {
+			investorTradingSummarySnapshotRepository.save(InvestorTradingSummarySnapshot.from(summary));
+		}
 	}
 }

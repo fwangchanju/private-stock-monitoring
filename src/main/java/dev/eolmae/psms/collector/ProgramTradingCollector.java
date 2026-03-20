@@ -23,16 +23,15 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ProgramTradingCollector {
 
-	// TODO: 키움 Open API 포털에서 확인 후 수정 필요
-	// 프로그램매매 순매수/순매도 상위 종목 랭킹 API
-	private static final String RANKING_API_PATH = "/api/dostk/programtrade";
-	private static final String RANKING_TR_ID = "FHKST76650100";  // TODO: 확인 필요
+	// ka90003: 프로그램순매수상위50요청 (종목정보 카테고리)
+	// TODO: /api/dostk/stkinfo - 종목정보 카테고리 경로 추정값, 포털 확인 필요
+	private static final String RANKING_API_PATH = "/api/dostk/stkinfo";
+	private static final String RANKING_TR_ID = "ka90003";
 
-	// plan.md 기준: ka90007 또는 ka90010 (종목별 프로그램매매 추이)
-	// TODO: 키움 Open API 포털에서 경로 및 tr_id 확인 후 수정 필요
-	private static final String HISTORY_API_PATH = "/api/dostk/stkinfo";
-	private static final String HISTORY_TR_ID_INTRADAY = "ka90007";   // 당일 장중
-	private static final String HISTORY_TR_ID_DAILY = "ka90010";      // 일별
+	// ka90008: 종목시간별프로그램매매추이요청 (시세 카테고리)
+	// TODO: /api/dostk/mrktcnd - 시세 카테고리 경로 추정값, 포털 확인 필요
+	private static final String HISTORY_API_PATH = "/api/dostk/mrktcnd";
+	private static final String HISTORY_TR_ID = "ka90008";
 
 	private final KiwoomApiClient kiwoomApiClient;
 	private final ProgramTradingRankingSnapshotRepository rankingRepository;
@@ -63,25 +62,29 @@ public class ProgramTradingCollector {
 			return;
 		}
 
-		// TODO: 정렬 구분 파라미터 값 확인 필요 (순매수: "1", 순매도: "2" 등)
-		String sortCode = rankingType == ProgramRankingType.NET_BUY ? "1" : "2";
+		// trde_upper_tp: 2=순매수상위, 1=순매도상위
+		String trdeUpperTp = rankingType == ProgramRankingType.NET_BUY ? "2" : "1";
 
 		JsonNode response = kiwoomApiClient.post(
 			RANKING_API_PATH,
 			RANKING_TR_ID,
-			Map.of("sort_type", sortCode)  // TODO: 파라미터명 확인 필요
+			Map.of(
+				"trde_upper_tp", trdeUpperTp,
+				"amt_qty_tp", "1",      // 1=금액
+				"mrkt_tp", "P00101",    // P00101=코스피 (TODO: KOSDAQ P10102 별도 수집 고려)
+				"stex_tp", "3"          // 3=통합
+			)
 		);
 
-		// TODO: 응답 배열 필드명 확인 필요
-		JsonNode outputList = response.path("output");
+		// 응답 배열: prm_netprps_upper_50
+		JsonNode outputList = response.path("prm_netprps_upper_50");
 		int rank = 1;
 		for (JsonNode item : outputList) {
-			// TODO: 아래 필드명들은 키움 API 응답 문서 기준으로 수정 필요
-			String stockCode = KiwoomResponseParser.parseString(item, "stck_shrn_iscd");
-			String stockName = KiwoomResponseParser.parseString(item, "hts_kor_isnm");
-			BigDecimal buyAmount = KiwoomResponseParser.parseBigDecimal(item, "pgmm_cntg_buyqty");
-			BigDecimal sellAmount = KiwoomResponseParser.parseBigDecimal(item, "pgmm_cntg_seln_qty");
-			BigDecimal netBuyAmount = KiwoomResponseParser.parseBigDecimal(item, "pgmm_cntg_ntby_qty");
+			String stockCode = KiwoomResponseParser.parseString(item, "stk_cd");
+			String stockName = KiwoomResponseParser.parseString(item, "stk_nm");
+			BigDecimal buyAmount = KiwoomResponseParser.parseBigDecimal(item, "prm_buy_amt");
+			BigDecimal sellAmount = KiwoomResponseParser.parseBigDecimal(item, "prm_sell_amt");
+			BigDecimal netBuyAmount = KiwoomResponseParser.parseBigDecimal(item, "prm_netprps_amt");
 
 			rankingRepository.save(ProgramTradingRankingSnapshot.create(
 				rankingType, rank++, stockCode, stockName, buyAmount, sellAmount, netBuyAmount, snapshotTime
@@ -105,22 +108,21 @@ public class ProgramTradingCollector {
 	private void collectHistoryForStock(String stockCode, LocalDateTime snapshotTime) {
 		JsonNode response = kiwoomApiClient.post(
 			HISTORY_API_PATH,
-			HISTORY_TR_ID_INTRADAY,
-			Map.of("stck_shrn_iscd", stockCode)  // TODO: 파라미터명 확인 필요
+			HISTORY_TR_ID,
+			Map.of("stk_cd", stockCode)  // TODO: 요청 파라미터명 포털 확인 필요
 		);
 
-		// TODO: 응답 구조 확인 필요. 단일 시점 데이터면 output, 목록이면 output1 등
-		JsonNode output = response.path("output");
-		// 목록 응답인 경우 최신 항목만 저장
-		JsonNode item = output.isArray() ? output.path(0) : output;
+		// TODO: ka90008 응답 배열 필드명 포털 확인 필요
+		JsonNode outputList = response.path("output");
+		JsonNode item = outputList.isArray() ? outputList.path(0) : outputList;
 		if (item.isMissingNode()) {
 			return;
 		}
 
-		// TODO: 아래 필드명들은 키움 API 응답 문서 기준으로 수정 필요
-		BigDecimal buyAmount = KiwoomResponseParser.parseBigDecimal(item, "pgmm_buy_amt");
-		BigDecimal sellAmount = KiwoomResponseParser.parseBigDecimal(item, "pgmm_seln_amt");
-		BigDecimal netBuyAmount = KiwoomResponseParser.parseBigDecimal(item, "pgmm_ntby_amt");
+		// TODO: 응답 필드명 포털 확인 필요
+		BigDecimal buyAmount = KiwoomResponseParser.parseBigDecimal(item, "prm_buy_amt");
+		BigDecimal sellAmount = KiwoomResponseParser.parseBigDecimal(item, "prm_sell_amt");
+		BigDecimal netBuyAmount = KiwoomResponseParser.parseBigDecimal(item, "prm_ntby_amt");
 
 		historyRepository.save(ProgramTradingHistory.create(
 			stockCode, snapshotTime, buyAmount, sellAmount, netBuyAmount

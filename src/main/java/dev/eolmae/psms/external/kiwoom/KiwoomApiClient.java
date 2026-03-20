@@ -27,7 +27,7 @@ public class KiwoomApiClient {
 			.header("authorization", "Bearer " + tokenManager.getToken())
 			.header("appkey", properties.appKey())
 			.header("secretkey", properties.secret())
-			.header("tr_id", trId)
+			.header("api-id", trId)
 			.body(requestBody)
 			.retrieve()
 			.body(JsonNode.class);
