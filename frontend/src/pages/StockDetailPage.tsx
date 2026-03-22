@@ -15,9 +15,19 @@ export default function StockDetailPage() {
   useEffect(() => {
     if (!stockCode) return
     setLoading(true)
+
+    const now = new Date()
+    const past30 = new Date(now)
+    past30.setDate(past30.getDate() - 30)
+
+    const toDateTime = now.toISOString().slice(0, 19)
+    const fromDateTime = past30.toISOString().slice(0, 19)
+    const toDate = now.toISOString().slice(0, 10)
+    const fromDate = past30.toISOString().slice(0, 10)
+
     Promise.all([
-      getProgramTradingHistory(stockCode),
-      getShortSellingHistory(stockCode),
+      getProgramTradingHistory(stockCode, fromDateTime, toDateTime),
+      getShortSellingHistory(stockCode, fromDate, toDate),
     ])
       .then(([prog, short]) => {
         setProgramHistory(prog.items)
