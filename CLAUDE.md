@@ -20,12 +20,12 @@ Oracle Free Tier AMD 서버 2대.
 - **1번 서버**: 앱 운영 서버. psmsapp, mariadb, nginx 컨테이너 기동 중.
   - nginx는 `~/infra/nginx/docker-compose.yml`로 별도 관리 (`image: ghcr.io/fwangchanju/psms-nginx:latest`).
   - nginx.conf는 이 레포의 `deploy/nginx/nginx.conf`를 볼륨 마운트.
-- **2번 서버**: 빌드 서버. GitHub Actions로 대체 가능 (현재 워크플로우 추가됨).
+- **2번 서버**: 빌드 서버. GitHub Actions로 대체됨.
 
-배포 흐름:
-- **자동**: `auto-build` 브랜치 push → GitHub Actions가 psms + psms-nginx 이미지 빌드 후 GHCR push
-- **수동 빌드**: GitHub Actions 탭에서 워크플로우 수동 실행 (app/nginx 선택)
-- **배포**: 1번 서버에서 `deploy/deploy.sh` 실행 (또는 `deploy-app.sh` / `deploy-nginx.sh` 개별 실행)
+배포 흐름 (전체 자동화 완료):
+- `auto-build` 브랜치 push → 빌드(psms + psms-nginx) → GHCR push → SSH로 1번 서버 자동 배포
+- GitHub Actions 수동 실행: app / nginx / all 선택 → 해당 이미지 빌드 + 배포
+- 워크플로우: `.github/workflows/build-and-push.yml`
 
 ### Docker 네트워크
 
@@ -81,7 +81,7 @@ dev.eolmae.psms
 - Nginx 이미지 빌드 통합 (`deploy/nginx/Dockerfile`: 프론트 빌드 → nginx)
 - dashboard.base-url: `https://eolmae.duckdns.org`
 - 배포 스크립트 분리: `deploy-app.sh` (앱만), `deploy-nginx.sh` (nginx만), `deploy.sh` (통합)
-- GitHub Actions 워크플로우 (`.github/workflows/build-and-push.yml`): auto-build 자동 / main 수동 (app·nginx 선택)
+- GitHub Actions CI/CD 파이프라인 완성 (빌드 → GHCR push → SSH 자동 배포까지 완전 자동화)
 - `KiwoomApiClient` 헤더명 `tr_id` → `api-id` 수정 완료
 
 **미완료 — 키움 API 수집기 TODO**
@@ -100,8 +100,6 @@ dev.eolmae.psms
 
 확인된 정보: TR ID는 코드에 반영 완료. HTTP 경로: 순위정보 → `/api/dostk/rkinfo` (확인됨), 나머지는 포털 직접 확인 필요.
 
-**미완료 — 운영 서버 작업**
-- 1번 서버에서 `deploy/deploy-nginx.sh` 실행하여 nginx를 `psms-nginx:latest` 이미지로 교체 필요 (현재 기본 nginx:alpine 이미지 사용 중)
 
 ---
 
