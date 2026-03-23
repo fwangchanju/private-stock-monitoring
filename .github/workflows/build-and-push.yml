@@ -61,12 +61,14 @@ jobs:
 
       - name: Deploy to server
         uses: appleboy/ssh-action@v1
+        env:
+          CR_PAT: ${{ secrets.CR_PAT }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
+          envs: CR_PAT
           script: |
-            source ~/.bashrc 2>/dev/null || true
             DEPLOY_DIR=~/app/private-stock-monitoring/deploy
             TARGET="${{ inputs.target }}"
             EVENT="${{ github.event_name }}"
