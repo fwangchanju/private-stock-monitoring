@@ -15,7 +15,7 @@
 - ✅ 컨테이너 간 네트워크 구성 (backend network)
 - ✅ 데이터 저장 볼륨 경로 설정 (maria_data)
 - ✅ GitHub Actions 워크플로우 구성 (auto-build 자동 / main 수동, app·nginx 선택 빌드)
-- ❌ nginx 컨테이너를 `psms-nginx:latest` 이미지로 교체 (현재 기본 nginx:alpine 사용 중 → `deploy/deploy-nginx.sh` 실행 필요)
+- ✅ nginx 컨테이너를 `psms-nginx:latest` 이미지로 교체
 - ❓ 로그 파일 및 디스크 사용량 관리 방식 반영
 
 ## nginx / 접근 경로 작업
@@ -50,8 +50,8 @@
 
 - ❓ 서버 재기동 후 컨테이너 자동 기동 여부 확인 (restart: always 설정됨, 실재기동 검증 필요)
 - ✅ backend → mariadb 연결 확인 (Flyway 마이그레이션 정상 실행)
-- ❌ psms-nginx 이미지 교체 후 nginx → backend 연결 확인
-- ❌ psms-nginx 이미지 교체 후 외부에서 대시보드 URL 접속 확인
+- ✅ nginx → backend 연결 확인 (대시보드 접속 확인)
+- ✅ 외부에서 대시보드 URL 접속 확인
 - ❌ 텔레그램 링크 클릭 시 정상 진입 확인 (수집기 완성 후)
 
 ---
@@ -59,3 +59,5 @@
 ## 참고
 
 - 키움증권 REST API 키/토큰 1년마다 갱신 필요 → 갱신 방안 수립 필요
+
+- 깃허브 액션 빌드 파이프 라인 구성 완료, 운영 서버에서 이미지 pull 받아서 교체하는 파이프라인 구축 필요
