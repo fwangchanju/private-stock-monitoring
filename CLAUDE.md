@@ -20,9 +20,12 @@ Oracle Free Tier AMD 서버 2대.
 - **1번 서버**: 앱 운영 서버. psmsapp, mariadb, nginx 컨테이너 기동 중.
   - nginx는 `~/infra/nginx/docker-compose.yml`로 별도 관리 (`image: ghcr.io/fwangchanju/psms-nginx:latest`).
   - nginx.conf는 이 레포의 `deploy/nginx/nginx.conf`를 볼륨 마운트.
-- **2번 서버**: 빌드 서버. `deploy/build-and-push.sh`로 이미지 빌드 후 GHCR push.
+- **2번 서버**: 빌드 서버. GitHub Actions로 대체 가능 (현재 워크플로우 추가됨).
 
-배포 흐름: 2번에서 빌드 → GHCR push (psms + psms-nginx 2개) → 1번에서 `deploy/deploy.sh` 실행.
+배포 흐름:
+- **자동**: `auto-build` 브랜치 push → GitHub Actions가 psms + psms-nginx 이미지 빌드 후 GHCR push
+- **수동 빌드**: GitHub Actions 탭에서 워크플로우 수동 실행 (app/nginx 선택)
+- **배포**: 1번 서버에서 `deploy/deploy.sh` 실행 (또는 `deploy-app.sh` / `deploy-nginx.sh` 개별 실행)
 
 ### Docker 네트워크
 
@@ -77,6 +80,9 @@ dev.eolmae.psms
   - 상세 페이지 4종 (장중랭킹, 프로그램매매, 지수기여도, 종목상세)
 - Nginx 이미지 빌드 통합 (`deploy/nginx/Dockerfile`: 프론트 빌드 → nginx)
 - dashboard.base-url: `https://eolmae.duckdns.org`
+- 배포 스크립트 분리: `deploy-app.sh` (앱만), `deploy-nginx.sh` (nginx만), `deploy.sh` (통합)
+- GitHub Actions 워크플로우 (`.github/workflows/build-and-push.yml`): auto-build 자동 / main 수동 (app·nginx 선택)
+- `KiwoomApiClient` 헤더명 `tr_id` → `api-id` 수정 완료
 
 **미완료 — 키움 API 수집기 TODO**
 
@@ -84,17 +90,18 @@ dev.eolmae.psms
 
 | 수집기 | 수정 필요 항목 |
 |---|---|
-| `IntradayInvestorRankingCollector` | TR ID `ka10065`로 수정, API 경로, 요청 파라미터명, 응답 필드명 |
-| `ProgramTradingCollector` | TR ID `ka90003`(랭킹)·`ka90008`/`ka90013`(추이)로 수정, 경로, 파라미터·필드명 |
-| `ShortSellingCollector` | TR ID `ka10014`로 수정, 경로, 파라미터·필드명 |
-| `StockMasterCollector` | TR ID `ka10099`로 수정, 경로, 파라미터·필드명 |
-| `MarketOverviewCollector` | TR ID `ka20001`, 경로, 파라미터·필드명 전체 |
-| `InvestorTradingSummaryCollector` | TR ID `ka10051`, 경로, 파라미터·필드명 전체 |
+| `IntradayInvestorRankingCollector` | API 경로, 요청 파라미터명, 응답 필드명 |
+| `ProgramTradingCollector` | 경로, 파라미터·필드명 (랭킹 ka90003, 추이 ka90008/ka90013) |
+| `ShortSellingCollector` | 경로, 파라미터·필드명 |
+| `StockMasterCollector` | 경로, 파라미터·필드명 |
+| `MarketOverviewCollector` | 경로, 파라미터·필드명 전체 |
+| `InvestorTradingSummaryCollector` | 경로, 파라미터·필드명 전체 |
 | `IndexContributionRankingCollector` | TR ID 미확인, 경로, 파라미터·필드명 전체 |
 
-추가로 `KiwoomApiClient`의 헤더명 `tr_id` → `api-id` 수정 필요 (포털 예시 확인됨).
+확인된 정보: TR ID는 코드에 반영 완료. HTTP 경로: 순위정보 → `/api/dostk/rkinfo` (확인됨), 나머지는 포털 직접 확인 필요.
 
-확인된 HTTP 경로: 순위정보 → `/api/dostk/rkinfo`. 나머지 카테고리 경로는 포털 직접 확인 필요.
+**미완료 — 운영 서버 작업**
+- 1번 서버에서 `deploy/deploy-nginx.sh` 실행하여 nginx를 `psms-nginx:latest` 이미지로 교체 필요 (현재 기본 nginx:alpine 이미지 사용 중)
 
 ---
 

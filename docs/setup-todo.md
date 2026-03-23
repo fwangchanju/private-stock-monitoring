@@ -14,7 +14,8 @@
 - ✅ mariadb 컨테이너 구성 (mariadb:10.6, healthy 상태)
 - ✅ 컨테이너 간 네트워크 구성 (backend network)
 - ✅ 데이터 저장 볼륨 경로 설정 (maria_data)
-- 🔄 nginx 컨테이너 구성 (인증서·htpasswd 완료, 컨테이너 기동 확인 필요)
+- ✅ GitHub Actions 워크플로우 구성 (auto-build 자동 / main 수동, app·nginx 선택 빌드)
+- ❌ nginx 컨테이너를 `psms-nginx:latest` 이미지로 교체 (현재 기본 nginx:alpine 사용 중 → `deploy/deploy-nginx.sh` 실행 필요)
 - ❓ 로그 파일 및 디스크 사용량 관리 방식 반영
 
 ## nginx / 접근 경로 작업
@@ -22,9 +23,9 @@
 - ✅ 외부 진입용 도메인 결정 (eolmae.duckdns.org)
 - ✅ HTTPS 인증서 발급 (Let's Encrypt / Certbot)
 - ✅ Basic Auth 파일 생성 (/etc/nginx/.htpasswd)
-- 🔄 nginx reverse proxy 설정 (nginx.conf 작성 완료, 컨테이너 기동 확인 필요)
-- ❌ 정적 프론트와 API 경로 충돌 없는지 확인 (프론트 구현 후)
-- ❌ 외부에서 대시보드 URL 접속 확인
+- ✅ nginx.conf 작성 완료 (reverse proxy + 정적 파일 서빙 설정)
+- ✅ 프론트엔드 구현 완료 (psms-nginx 이미지에 내장)
+- ❌ psms-nginx 이미지로 교체 후 외부 접속·API 라우팅 동작 확인 필요
 
 ## MariaDB 작업
 
@@ -48,10 +49,10 @@
 ## 운영 확인 작업
 
 - ❓ 서버 재기동 후 컨테이너 자동 기동 여부 확인 (restart: always 설정됨, 실재기동 검증 필요)
-- 🔄 nginx → backend 연결 확인 (nginx 기동 후 확인 필요)
 - ✅ backend → mariadb 연결 확인 (Flyway 마이그레이션 정상 실행)
-- ❌ 외부에서 대시보드 URL 접속 확인
-- ❌ 텔레그램 링크 클릭 시 정상 진입 확인
+- ❌ psms-nginx 이미지 교체 후 nginx → backend 연결 확인
+- ❌ psms-nginx 이미지 교체 후 외부에서 대시보드 URL 접속 확인
+- ❌ 텔레그램 링크 클릭 시 정상 진입 확인 (수집기 완성 후)
 
 ---
 
