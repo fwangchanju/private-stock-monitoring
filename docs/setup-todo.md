@@ -25,7 +25,7 @@
 - ✅ Basic Auth 파일 생성 (/etc/nginx/.htpasswd)
 - ✅ nginx.conf 작성 완료 (reverse proxy + 정적 파일 서빙 설정)
 - ✅ 프론트엔드 구현 완료 (psms-nginx 이미지에 내장)
-- ❌ psms-nginx 이미지로 교체 후 외부 접속·API 라우팅 동작 확인 필요
+- ✅ psms-nginx 이미지로 교체 후 외부 접속·API 라우팅 동작 확인
 
 ## MariaDB 작업
 
@@ -60,4 +60,4 @@
 
 - 키움증권 REST API 키/토큰 1년마다 갱신 필요 → 갱신 방안 수립 필요
 
-- 깃허브 액션 빌드 파이프 라인 구성 완료, 운영 서버에서 이미지 pull 받아서 교체하는 파이프라인 구축 필요
+- ✅ GitHub Actions CI/CD 파이프라인 완성 (빌드 → GHCR push → SSH 자동 배포)

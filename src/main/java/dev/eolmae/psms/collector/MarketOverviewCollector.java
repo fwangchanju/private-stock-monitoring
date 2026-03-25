@@ -22,8 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class MarketOverviewCollector {
 
 	// ka20001: 업종현재가요청 (업종 카테고리)
-	// TODO: /api/dostk/inds - 업종 카테고리 경로 추정값, 포털 확인 필요
-	private static final String API_PATH = "/api/dostk/inds";
+	private static final String API_PATH = "/api/dostk/sect";
 	private static final String TR_ID = "ka20001";
 
 	private final KiwoomApiClient kiwoomApiClient;
@@ -43,7 +42,7 @@ public class MarketOverviewCollector {
 
 	private void collectForMarket(MarketType marketType, LocalDateTime snapshotTime) {
 		// mrkt_tp: 0=코스피, 1=코스닥
-		// inds_cd: 001=코스피종합, 101=코스닥 (TODO: 정확한 값 포털 확인 필요)
+		// inds_cd: 001=코스피종합, 101=코스닥
 		String mrktTp = marketType == MarketType.KOSPI ? "0" : "1";
 		String indsCd = marketType == MarketType.KOSPI ? "001" : "101";
 
@@ -56,16 +55,15 @@ public class MarketOverviewCollector {
 			)
 		);
 
-		// TODO: 응답이 단일 객체인지 배열인지 확인 필요
 		JsonNode output = response.path("output");
 		LocalDateTime now = LocalDateTime.now();
 
 		// 확인된 응답 필드명 (포털 문서 기준)
 		BigDecimal indexValue = KiwoomResponseParser.parseBigDecimal(output, "cur_prc");
-		BigDecimal changeValue = KiwoomResponseParser.parseBigDecimal(output, "pred_pre");   // TODO: 필드명 확인
+		BigDecimal changeValue = KiwoomResponseParser.parseBigDecimal(output, "pred_pre");
 		BigDecimal changeRate = KiwoomResponseParser.parseBigDecimal(output, "flu_rt");
 		BigDecimal tradingValue = KiwoomResponseParser.parseBigDecimal(output, "trde_prica");
-		String marketStatus = KiwoomResponseParser.parseString(output, "mrkt_stat_cls_code"); // TODO: 필드명 확인
+		String marketStatus = KiwoomResponseParser.parseString(output, "mrkt_stat_cls_code");
 		int advancers = KiwoomResponseParser.parseInt(output, "rising");
 		int decliners = KiwoomResponseParser.parseInt(output, "fall");
 		int unchangedCount = KiwoomResponseParser.parseInt(output, "stdns");

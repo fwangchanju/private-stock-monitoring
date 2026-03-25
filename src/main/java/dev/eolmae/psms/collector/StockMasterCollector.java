@@ -22,7 +22,6 @@ public class StockMasterCollector {
 
 	// ka10099: 종목정보 리스트 (종목정보 카테고리)
 	// mrkt_tp 파라미터로 시장 구분: 0=코스피, 10=코스닥
-	// TODO: /api/dostk/stkinfo - 종목정보 카테고리 경로 추정값, 포털 확인 필요
 	private static final String API_PATH = "/api/dostk/stkinfo";
 	private static final String TR_ID = "ka10099";
 
@@ -57,19 +56,13 @@ public class StockMasterCollector {
 				Map.of("mrkt_tp", mrktTp)
 			);
 
-			// TODO: 응답 루트가 배열인지 또는 래퍼 필드명 확인 필요 (포털 응답 구조 확인)
-			JsonNode outputList = response.isArray() ? response : response.path("output");
+			// 응답 래퍼 필드: list
+			JsonNode outputList = response.path("list");
 			for (JsonNode item : outputList) {
 				String stockCode = KiwoomResponseParser.parseString(item, "code");
 				String stockName = KiwoomResponseParser.parseString(item, "name");
-				String state = KiwoomResponseParser.parseString(item, "state");
 
 				if (stockCode.isEmpty()) {
-					continue;
-				}
-
-				// state 값이 비정상인 종목 스킵 (TODO: 정상 state 값 포털 확인)
-				if ("9".equals(state)) {
 					continue;
 				}
 

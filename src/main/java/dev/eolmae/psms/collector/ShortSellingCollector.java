@@ -22,8 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ShortSellingCollector {
 
 	// ka10014: 공매도추이요청 (공매도 카테고리)
-	// TODO: /api/dostk/shrtslng - 공매도 카테고리 경로 추정값, 포털 확인 필요
-	private static final String API_PATH = "/api/dostk/shrtslng";
+	private static final String API_PATH = "/api/dostk/shsa";
 	private static final String TR_ID = "ka10014";
 	private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
@@ -56,6 +55,7 @@ public class ShortSellingCollector {
 			TR_ID,
 			Map.of(
 				"stk_cd", stockCode,
+				"tm_tp", "2",          // 2=일별
 				"strt_dt", dateStr,
 				"end_dt", dateStr
 			)

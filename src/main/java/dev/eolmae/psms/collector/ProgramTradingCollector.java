@@ -11,6 +11,7 @@ import dev.eolmae.psms.external.kiwoom.KiwoomApiClient;
 import dev.eolmae.psms.external.kiwoom.KiwoomResponseParser;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -24,14 +25,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class ProgramTradingCollector {
 
 	// ka90003: 프로그램순매수상위50요청 (종목정보 카테고리)
-	// TODO: /api/dostk/stkinfo - 종목정보 카테고리 경로 추정값, 포털 확인 필요
 	private static final String RANKING_API_PATH = "/api/dostk/stkinfo";
 	private static final String RANKING_TR_ID = "ka90003";
 
 	// ka90008: 종목시간별프로그램매매추이요청 (시세 카테고리)
-	// TODO: /api/dostk/mrktcnd - 시세 카테고리 경로 추정값, 포털 확인 필요
-	private static final String HISTORY_API_PATH = "/api/dostk/mrktcnd";
+	private static final String HISTORY_API_PATH = "/api/dostk/mrkcond";
 	private static final String HISTORY_TR_ID = "ka90008";
+	private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
 	private final KiwoomApiClient kiwoomApiClient;
 	private final ProgramTradingRankingSnapshotRepository rankingRepository;
@@ -71,7 +71,7 @@ public class ProgramTradingCollector {
 			Map.of(
 				"trde_upper_tp", trdeUpperTp,
 				"amt_qty_tp", "1",      // 1=금액
-				"mrkt_tp", "P00101",    // P00101=코스피 (TODO: KOSDAQ P10102 별도 수집 고려)
+				"mrkt_tp", "P00101",    // P00101=코스피, P10102=코스닥
 				"stex_tp", "3"          // 3=통합
 			)
 		);
@@ -106,23 +106,28 @@ public class ProgramTradingCollector {
 	}
 
 	private void collectHistoryForStock(String stockCode, LocalDateTime snapshotTime) {
+		String dateStr = snapshotTime.format(DATE_FMT);
 		JsonNode response = kiwoomApiClient.post(
 			HISTORY_API_PATH,
 			HISTORY_TR_ID,
-			Map.of("stk_cd", stockCode)  // TODO: 요청 파라미터명 포털 확인 필요
+			Map.of(
+				"stk_cd", stockCode,
+				"amt_qty_tp", "1",  // 1=금액
+				"date", dateStr
+			)
 		);
 
-		// TODO: ka90008 응답 배열 필드명 포털 확인 필요
-		JsonNode outputList = response.path("output");
-		JsonNode item = outputList.isArray() ? outputList.path(0) : outputList;
-		if (item.isMissingNode()) {
+		// 응답 배열: stk_tm_prm_trde_trnsn (시간별 프로그램 매매 추이)
+		// 가장 최근 시간 항목(첫 번째)만 저장
+		JsonNode outputList = response.path("stk_tm_prm_trde_trnsn");
+		JsonNode item = outputList.isArray() && outputList.size() > 0 ? outputList.get(0) : null;
+		if (item == null) {
 			return;
 		}
 
-		// TODO: 응답 필드명 포털 확인 필요
 		BigDecimal buyAmount = KiwoomResponseParser.parseBigDecimal(item, "prm_buy_amt");
 		BigDecimal sellAmount = KiwoomResponseParser.parseBigDecimal(item, "prm_sell_amt");
-		BigDecimal netBuyAmount = KiwoomResponseParser.parseBigDecimal(item, "prm_ntby_amt");
+		BigDecimal netBuyAmount = KiwoomResponseParser.parseBigDecimal(item, "prm_netprps_amt");
 
 		historyRepository.save(ProgramTradingHistory.create(
 			stockCode, snapshotTime, buyAmount, sellAmount, netBuyAmount

@@ -11,6 +11,7 @@ import dev.eolmae.psms.external.kiwoom.KiwoomApiClient;
 import dev.eolmae.psms.external.kiwoom.KiwoomResponseParser;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,9 +25,9 @@ public class InvestorTradingSummaryCollector {
 
 	// ka10051: 업종별투자자순매수요청 (업종 카테고리)
 	// 업종코드 001(코스피종합)/101(코스닥) 기준으로 시장 전체 투자자별 순매수 조회
-	// TODO: /api/dostk/inds - 업종 카테고리 경로 추정값, 포털 확인 필요
-	private static final String API_PATH = "/api/dostk/inds";
+	private static final String API_PATH = "/api/dostk/sect";
 	private static final String TR_ID = "ka10051";
+	private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
 	private final KiwoomApiClient kiwoomApiClient;
 	private final InvestorTradingSummaryRepository investorTradingSummaryRepository;
@@ -47,19 +48,20 @@ public class InvestorTradingSummaryCollector {
 		// mrkt_tp: 0=코스피, 1=코스닥
 		String mrktTp = marketType == MarketType.KOSPI ? "0" : "1";
 
+		String baseDt = snapshotTime.format(DATE_FMT);
 		JsonNode response = kiwoomApiClient.post(
 			API_PATH,
 			TR_ID,
 			Map.of(
 				"mrkt_tp", mrktTp,
 				"amt_qty_tp", "0",  // 0=금액
+				"base_dt", baseDt,
 				"stex_tp", "1"      // 1=KRX
 			)
 		);
 
 		// 응답 배열: inds_netprps (업종별 투자자 순매수 목록)
 		// 첫 번째 항목이 종합지수(코스피/코스닥 전체) 데이터
-		// TODO: 종합지수 항목 식별 방법 확인 (inds_cd == "001" 여부 등)
 		JsonNode indsNetprpsList = response.path("inds_netprps");
 		JsonNode compositeItem = findCompositeItem(indsNetprpsList, marketType);
 		if (compositeItem == null || compositeItem.isMissingNode()) {
@@ -85,7 +87,7 @@ public class InvestorTradingSummaryCollector {
 	}
 
 	private JsonNode findCompositeItem(JsonNode list, MarketType marketType) {
-		// TODO: 종합지수 inds_cd 값 확인 (KOSPI=001, KOSDAQ=101 추정)
+		// 종합지수 inds_cd: KOSPI=001, KOSDAQ=101
 		String compositeCode = marketType == MarketType.KOSPI ? "001" : "101";
 		for (JsonNode item : list) {
 			if (compositeCode.equals(item.path("inds_cd").asText())) {

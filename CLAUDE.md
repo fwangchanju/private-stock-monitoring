@@ -73,7 +73,7 @@ dev.eolmae.psms
 - Flyway 마이그레이션 V1 (스키마), V2 (샘플 데이터)
 - 1번 서버에서 prod 프로파일로 앱 정상 기동
 - 키움 API 연동 기반: KiwoomProperties, KiwoomTokenManager, KiwoomApiClient, KiwoomResponseParser
-- 수집기 전체 (collector/): 7개 Collector + CollectionScheduler — **TR ID·필드명 TODO 잔존** (하단 참고)
+- 수집기 전체 (collector/): 7개 Collector + CollectionScheduler — TR ID·경로·필드명 반영 완료 (IndexContributionRankingCollector 제외, 하단 참고)
 - 텔레그램 리마인더 (notification/): TelegramClient, TelegramNotifier, NotificationScheduler
 - 프론트엔드: React + Vite + TypeScript 전체 구현
   - 대시보드 페이지 (6개 섹션)
@@ -84,21 +84,26 @@ dev.eolmae.psms
 - GitHub Actions CI/CD 파이프라인 완성 (빌드 → GHCR push → SSH 자동 배포까지 완전 자동화)
 - `KiwoomApiClient` 헤더명 `tr_id` → `api-id` 수정 완료
 
-**미완료 — 키움 API 수집기 TODO**
+**미완료 — IndexContributionRankingCollector**
 
-수집기 코드는 작성됐으나 아래 항목을 포털에서 확인 후 수정 필요:
+키움 API 문서에서 지수기여도 API를 찾지 못함. 아래 항목 포털 직접 확인 필요:
+- TR ID (현재 `FHPUP03800100`는 추정값)
+- API 경로 (현재 `/api/dostk/indcontrib`는 추정값)
+- 요청 파라미터명 및 응답 필드명
 
-| 수집기 | 수정 필요 항목 |
-|---|---|
-| `IntradayInvestorRankingCollector` | API 경로, 요청 파라미터명, 응답 필드명 |
-| `ProgramTradingCollector` | 경로, 파라미터·필드명 (랭킹 ka90003, 추이 ka90008/ka90013) |
-| `ShortSellingCollector` | 경로, 파라미터·필드명 |
-| `StockMasterCollector` | 경로, 파라미터·필드명 |
-| `MarketOverviewCollector` | 경로, 파라미터·필드명 전체 |
-| `InvestorTradingSummaryCollector` | 경로, 파라미터·필드명 전체 |
-| `IndexContributionRankingCollector` | TR ID 미확인, 경로, 파라미터·필드명 전체 |
+나머지 6개 수집기 경로·파라미터·필드명은 API 문서 기준으로 반영 완료:
 
-확인된 정보: TR ID는 코드에 반영 완료. HTTP 경로: 순위정보 → `/api/dostk/rkinfo` (확인됨), 나머지는 포털 직접 확인 필요.
+| 수집기 | TR ID | API 경로 |
+|---|---|---|
+| `IntradayInvestorRankingCollector` | ka10065 | `/api/dostk/rkinfo` |
+| `ProgramTradingCollector` (랭킹) | ka90003 | `/api/dostk/stkinfo` |
+| `ProgramTradingCollector` (시간추이) | ka90008 | `/api/dostk/mrkcond` |
+| `ShortSellingCollector` | ka10014 | `/api/dostk/shsa` |
+| `StockMasterCollector` | ka10099 | `/api/dostk/stkinfo` |
+| `MarketOverviewCollector` | ka20001 | `/api/dostk/sect` |
+| `InvestorTradingSummaryCollector` | ka10051 | `/api/dostk/sect` |
+
+`IntradayInvestorRankingCollector`의 `orgn_tp` 코드(개인/기관)는 포털 확인 후 수정 필요. 외국인(`9000`)만 확인됨.
 
 
 ---
