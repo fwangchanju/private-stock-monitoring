@@ -4,15 +4,17 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import dev.eolmae.psms.external.kiwoom.KiwoomApiClient;
+import dev.eolmae.psms.external.kiwoom.KiwoomProperties;
+import dev.eolmae.psms.external.kiwoom.KiwoomTokenManager;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.junit.jupiter.api.TestInstance;
 
 /**
  * ka10051 업종별투자자순매수요청 — 투자자별매매종합 응답 구조 확인
@@ -21,19 +23,25 @@ import org.springframework.boot.test.context.SpringBootTest;
  *   - 응답 배열 필드명 (inds_netprps?)
  *   - 배열 내 inds_cd 값 — 종합지수 행이 "001"(코스피) / "101"(코스닥)인지
  *   - ind_netprps / frgnr_netprps / orgn_netprps 필드명 및 값 형태
- *   - 종합지수 항목이 첫 번째 항목인지 아닌지
  *
  * 결과: docs/test/ 폴더에 JSON 파일로 저장됨
  */
-@SpringBootTest(properties = {"spring.flyway.enabled=false", "spring.jpa.hibernate.ddl-auto=create-drop"})
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class Ka10051InvestorTradingSummaryTest {
 
-    @Autowired
     private KiwoomApiClient kiwoomApiClient;
-
     private final ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final Path OUTPUT_DIR = Paths.get("docs/test");
+
+    @BeforeAll
+    void setUp() {
+        var props = new KiwoomProperties(
+            System.getenv("KIWOOM_APP_KEY"),
+            System.getenv("KIWOOM_SECRET")
+        );
+        kiwoomApiClient = new KiwoomApiClient(props, new KiwoomTokenManager(props));
+    }
 
     @Test
     void 코스피_응답확인() throws Exception {
@@ -41,12 +49,7 @@ class Ka10051InvestorTradingSummaryTest {
         JsonNode response = kiwoomApiClient.post(
             "/api/dostk/sect",
             "ka10051",
-            Map.of(
-                "mrkt_tp", "0",
-                "amt_qty_tp", "0",  // 0=금액
-                "base_dt", today,
-                "stex_tp", "1"      // 1=KRX
-            )
+            Map.of("mrkt_tp", "0", "amt_qty_tp", "0", "base_dt", today, "stex_tp", "1")
         );
         writeResponse("ka10051_kospi.json", response);
     }
@@ -57,12 +60,7 @@ class Ka10051InvestorTradingSummaryTest {
         JsonNode response = kiwoomApiClient.post(
             "/api/dostk/sect",
             "ka10051",
-            Map.of(
-                "mrkt_tp", "1",
-                "amt_qty_tp", "0",
-                "base_dt", today,
-                "stex_tp", "1"
-            )
+            Map.of("mrkt_tp", "1", "amt_qty_tp", "0", "base_dt", today, "stex_tp", "1")
         );
         writeResponse("ka10051_kosdaq.json", response);
     }

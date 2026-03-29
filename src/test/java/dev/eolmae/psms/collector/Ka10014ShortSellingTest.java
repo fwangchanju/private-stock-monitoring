@@ -4,15 +4,17 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import dev.eolmae.psms.external.kiwoom.KiwoomApiClient;
+import dev.eolmae.psms.external.kiwoom.KiwoomProperties;
+import dev.eolmae.psms.external.kiwoom.KiwoomTokenManager;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.junit.jupiter.api.TestInstance;
 
 /**
  * ka10014 공매도추이요청 — 종목별 공매도추이 응답 구조 확인
@@ -24,15 +26,22 @@ import org.springframework.boot.test.context.SpringBootTest;
  *
  * 결과: docs/test/ 폴더에 JSON 파일로 저장됨
  */
-@SpringBootTest(properties = {"spring.flyway.enabled=false", "spring.jpa.hibernate.ddl-auto=create-drop"})
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class Ka10014ShortSellingTest {
 
-    @Autowired
     private KiwoomApiClient kiwoomApiClient;
-
     private final ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final Path OUTPUT_DIR = Paths.get("docs/test");
+
+    @BeforeAll
+    void setUp() {
+        var props = new KiwoomProperties(
+            System.getenv("KIWOOM_APP_KEY"),
+            System.getenv("KIWOOM_SECRET")
+        );
+        kiwoomApiClient = new KiwoomApiClient(props, new KiwoomTokenManager(props));
+    }
 
     @Test
     void 삼성전자_당일_응답확인() throws Exception {
@@ -40,12 +49,7 @@ class Ka10014ShortSellingTest {
         JsonNode response = kiwoomApiClient.post(
             "/api/dostk/shsa",
             "ka10014",
-            Map.of(
-                "stk_cd", "005930",
-                "tm_tp", "2",       // 2=일별
-                "strt_dt", today,
-                "end_dt", today
-            )
+            Map.of("stk_cd", "005930", "tm_tp", "2", "strt_dt", today, "end_dt", today)
         );
         writeResponse("ka10014_005930_today.json", response);
     }
@@ -57,12 +61,7 @@ class Ka10014ShortSellingTest {
         JsonNode response = kiwoomApiClient.post(
             "/api/dostk/shsa",
             "ka10014",
-            Map.of(
-                "stk_cd", "005930",
-                "tm_tp", "2",
-                "strt_dt", weekAgo,
-                "end_dt", today
-            )
+            Map.of("stk_cd", "005930", "tm_tp", "2", "strt_dt", weekAgo, "end_dt", today)
         );
         writeResponse("ka10014_005930_week.json", response);
     }

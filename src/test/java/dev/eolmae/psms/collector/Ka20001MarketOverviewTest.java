@@ -4,13 +4,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import dev.eolmae.psms.external.kiwoom.KiwoomApiClient;
+import dev.eolmae.psms.external.kiwoom.KiwoomProperties;
+import dev.eolmae.psms.external.kiwoom.KiwoomTokenManager;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.junit.jupiter.api.TestInstance;
 
 /**
  * ka20001 업종현재가요청 — 시장종합 응답 구조 확인
@@ -23,24 +25,28 @@ import org.springframework.boot.test.context.SpringBootTest;
  *
  * 결과: docs/test/ 폴더에 JSON 파일로 저장됨
  */
-@SpringBootTest(properties = {"spring.flyway.enabled=false", "spring.jpa.hibernate.ddl-auto=create-drop"})
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class Ka20001MarketOverviewTest {
 
-    @Autowired
     private KiwoomApiClient kiwoomApiClient;
-
     private final ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
     private static final Path OUTPUT_DIR = Paths.get("docs/test");
+
+    @BeforeAll
+    void setUp() {
+        var props = new KiwoomProperties(
+            System.getenv("KIWOOM_APP_KEY"),
+            System.getenv("KIWOOM_SECRET")
+        );
+        kiwoomApiClient = new KiwoomApiClient(props, new KiwoomTokenManager(props));
+    }
 
     @Test
     void 코스피_응답확인() throws Exception {
         JsonNode response = kiwoomApiClient.post(
             "/api/dostk/sect",
             "ka20001",
-            Map.of(
-                "mrkt_tp", "0",
-                "inds_cd", "001"
-            )
+            Map.of("mrkt_tp", "0", "inds_cd", "001")
         );
         writeResponse("ka20001_kospi.json", response);
     }
@@ -50,10 +56,7 @@ class Ka20001MarketOverviewTest {
         JsonNode response = kiwoomApiClient.post(
             "/api/dostk/sect",
             "ka20001",
-            Map.of(
-                "mrkt_tp", "1",
-                "inds_cd", "101"
-            )
+            Map.of("mrkt_tp", "1", "inds_cd", "101")
         );
         writeResponse("ka20001_kosdaq.json", response);
     }
