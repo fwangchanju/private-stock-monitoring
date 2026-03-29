@@ -24,7 +24,7 @@ import org.springframework.boot.test.context.SpringBootTest;
  * 결과: docs/test/ 폴더에 JSON 파일로 저장됨
  * 주의: 장중(09:00~15:30)에 실행해야 시간별 데이터 존재
  */
-@SpringBootTest
+@SpringBootTest(properties = {"spring.flyway.enabled=false", "spring.jpa.hibernate.ddl-auto=create-drop"})
 class Ka90008ProgramTradingHistoryTest {
 
     @Autowired

@@ -25,7 +25,7 @@ import org.springframework.boot.test.context.SpringBootTest;
  *
  * 결과: docs/test/ 폴더에 JSON 파일로 저장됨
  */
-@SpringBootTest
+@SpringBootTest(properties = {"spring.flyway.enabled=false", "spring.jpa.hibernate.ddl-auto=create-drop"})
 class Ka10051InvestorTradingSummaryTest {
 
     @Autowired

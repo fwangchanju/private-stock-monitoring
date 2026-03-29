@@ -23,7 +23,7 @@ import org.springframework.boot.test.context.SpringBootTest;
  * 결과: docs/test/ 폴더에 JSON 파일로 저장됨
  * 주의: 응답이 수백~수천 건일 수 있으므로 처음 5개만 별도 파일에 저장
  */
-@SpringBootTest
+@SpringBootTest(properties = {"spring.flyway.enabled=false", "spring.jpa.hibernate.ddl-auto=create-drop"})
 class Ka10099StockMasterTest {
 
     @Autowired
