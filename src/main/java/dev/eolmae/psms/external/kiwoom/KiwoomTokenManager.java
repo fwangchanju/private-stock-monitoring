@@ -14,7 +14,7 @@ import org.springframework.web.client.RestClient;
 @RequiredArgsConstructor
 public class KiwoomTokenManager {
 
-	private static final String TOKEN_URL = "https://openapi.kiwoom.com:9443/oauth2/token";
+	private static final String TOKEN_URL = "https://api.kiwoom.com/oauth2/token";
 
 	private final KiwoomProperties properties;
 	private final RestClient restClient = RestClient.create();

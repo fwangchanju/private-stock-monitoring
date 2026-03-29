@@ -12,7 +12,7 @@ import org.springframework.web.client.RestClient;
 @RequiredArgsConstructor
 public class KiwoomApiClient {
 
-	private static final String BASE_URL = "https://openapi.kiwoom.com:9443";
+	private static final String BASE_URL = "https://api.kiwoom.com";
 
 	private final KiwoomProperties properties;
 	private final KiwoomTokenManager tokenManager;
