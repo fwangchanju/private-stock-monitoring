@@ -61,3 +61,12 @@
 - 키움증권 REST API 키/토큰 1년마다 갱신 필요 → 갱신 방안 수립 필요
 
 - ✅ GitHub Actions CI/CD 파이프라인 완성 (빌드 → GHCR push → SSH 자동 배포)
+
+## TODO List
+
+1. GHCR 이미지 패키지명 변경: psms → psms-backend, psms-nginx → psms-frontend (GHCR, docker-compose.yml, GitHub Actions 세 곳 함께 수정)
+2. API 수집 및 적재 비즈니스 재설계 필요 (상세 내용: docs/plan.md 참고)
+3. deploy 폴더 내부에 있는 nginx 관련 설정(아마 docker-compose.yml) front 로 경로 변경
+4. http ssl 고민필요
+5. id password 방식 로그인 번거로움
+6. ui 개선(지금은 대중적인 느낌), NO CSS 인가 그걸로 윈도우 97? 98 느낌 UI 좀 까리하던데.
