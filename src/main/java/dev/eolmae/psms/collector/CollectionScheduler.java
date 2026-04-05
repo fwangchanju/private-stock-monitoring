@@ -18,7 +18,6 @@ public class CollectionScheduler {
 	private final MarketOverviewCollector marketOverviewCollector;
 	private final InvestorTradingSummaryCollector investorTradingSummaryCollector;
 	private final IntradayInvestorRankingCollector intradayInvestorRankingCollector;
-	private final IndexContributionRankingCollector indexContributionRankingCollector;
 	private final ProgramTradingCollector programTradingCollector;
 	private final ShortSellingCollector shortSellingCollector;
 	private final StockMasterCollector stockMasterCollector;
@@ -35,7 +34,6 @@ public class CollectionScheduler {
 		runSafely("시장종합", () -> marketOverviewCollector.collect(snapshotTime));
 		runSafely("투자자별매매종합", () -> investorTradingSummaryCollector.collect(snapshotTime));
 		runSafely("장중투자자랭킹", () -> intradayInvestorRankingCollector.collect(snapshotTime));
-		runSafely("지수기여도랭킹", () -> indexContributionRankingCollector.collect(snapshotTime));
 		runSafely("프로그램매매", () -> programTradingCollector.collect(snapshotTime));
 
 		log.info("장중 시장 데이터 수집 완료: snapshotTime={}", snapshotTime);
