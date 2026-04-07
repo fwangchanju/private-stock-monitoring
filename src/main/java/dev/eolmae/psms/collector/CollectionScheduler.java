@@ -18,6 +18,7 @@ public class CollectionScheduler {
 	private final MarketOverviewCollector marketOverviewCollector;
 	private final InvestorTradingSummaryCollector investorTradingSummaryCollector;
 	private final IntradayInvestorRankingCollector intradayInvestorRankingCollector;
+	private final ProgramTradingRankingCollector programTradingRankingCollector;
 	private final ProgramTradingCollector programTradingCollector;
 	private final ShortSellingCollector shortSellingCollector;
 	private final StockMasterCollector stockMasterCollector;
@@ -34,16 +35,27 @@ public class CollectionScheduler {
 		runSafely("시장종합", () -> marketOverviewCollector.collect(snapshotTime));
 		runSafely("투자자별매매종합", () -> investorTradingSummaryCollector.collect(snapshotTime));
 		runSafely("장중투자자랭킹", () -> intradayInvestorRankingCollector.collect(snapshotTime));
-		runSafely("프로그램매매", () -> programTradingCollector.collect(snapshotTime));
+		runSafely("프로그램매매랭킹", () -> programTradingRankingCollector.collect(snapshotTime));
+		runSafely("프로그램매매히스토리", () -> programTradingCollector.collect(snapshotTime));
 
 		log.info("장중 시장 데이터 수집 완료: snapshotTime={}", snapshotTime);
 	}
 
 	/**
-	 * 공매도 데이터 수집: 평일 16:00 (장 마감 후 1회)
-	 * 공매도 데이터는 일 단위 데이터이므로 장 마감 후 1회 수집
+	 * 프로그램매매 일별 이력 수집: 평일 16:00 (장 마감 후 1회)
 	 */
 	@Scheduled(cron = "0 0 16 * * MON-FRI", zone = "Asia/Seoul")
+	public void collectProgramTradingDaily() {
+		LocalDate tradeDate = LocalDate.now(KST);
+		log.info("프로그램매매 일별 이력 수집 시작: tradeDate={}", tradeDate);
+		runSafely("프로그램매매일별", () -> programTradingCollector.collectDaily(tradeDate));
+		log.info("프로그램매매 일별 이력 수집 완료: tradeDate={}", tradeDate);
+	}
+
+	/**
+	 * 공매도 데이터 수집: 평일 19:00 (당일 자료 18:30 이후 제공)
+	 */
+	@Scheduled(cron = "0 0 19 * * MON-FRI", zone = "Asia/Seoul")
 	public void collectShortSelling() {
 		LocalDate tradeDate = LocalDate.now(KST);
 		log.info("공매도 데이터 수집 시작: tradeDate={}", tradeDate);

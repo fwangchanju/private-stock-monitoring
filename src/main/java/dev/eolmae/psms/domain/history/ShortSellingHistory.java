@@ -29,11 +29,26 @@ public class ShortSellingHistory {
 	@Column(nullable = false)
 	private long shortVolume;
 
+	@Column(nullable = false)
+	private long shortBalanceVolume;
+
 	@Column(nullable = false, precision = 19, scale = 2)
 	private BigDecimal shortAmount;
 
+	@Column(nullable = false, precision = 19, scale = 4)
+	private BigDecimal shortAvgPrice;
+
 	@Column(nullable = false, precision = 9, scale = 4)
 	private BigDecimal shortRatio;
+
+	@Column(nullable = false, precision = 19, scale = 4)
+	private BigDecimal closePrice;
+
+	@Column(nullable = false, precision = 19, scale = 4)
+	private BigDecimal priceChange;
+
+	@Column(nullable = false, precision = 9, scale = 4)
+	private BigDecimal changeRate;
 
 	@Column(nullable = false)
 	private LocalDateTime createdAt;
@@ -42,14 +57,34 @@ public class ShortSellingHistory {
 	}
 
 	public static ShortSellingHistory create(String stockCode, LocalDate tradeDate,
-		long shortVolume, BigDecimal shortAmount, BigDecimal shortRatio) {
+		long shortVolume, long shortBalanceVolume,
+		BigDecimal shortAmount, BigDecimal shortAvgPrice, BigDecimal shortRatio,
+		BigDecimal closePrice, BigDecimal priceChange, BigDecimal changeRate) {
 		var entity = new ShortSellingHistory();
 		entity.stockCode = stockCode;
 		entity.tradeDate = tradeDate;
 		entity.shortVolume = shortVolume;
+		entity.shortBalanceVolume = shortBalanceVolume;
 		entity.shortAmount = shortAmount;
+		entity.shortAvgPrice = shortAvgPrice;
 		entity.shortRatio = shortRatio;
+		entity.closePrice = closePrice;
+		entity.priceChange = priceChange;
+		entity.changeRate = changeRate;
 		entity.createdAt = LocalDateTime.now();
 		return entity;
+	}
+
+	public void update(long shortVolume, long shortBalanceVolume,
+		BigDecimal shortAmount, BigDecimal shortAvgPrice, BigDecimal shortRatio,
+		BigDecimal closePrice, BigDecimal priceChange, BigDecimal changeRate) {
+		this.shortVolume = shortVolume;
+		this.shortBalanceVolume = shortBalanceVolume;
+		this.shortAmount = shortAmount;
+		this.shortAvgPrice = shortAvgPrice;
+		this.shortRatio = shortRatio;
+		this.closePrice = closePrice;
+		this.priceChange = priceChange;
+		this.changeRate = changeRate;
 	}
 }

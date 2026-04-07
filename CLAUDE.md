@@ -134,6 +134,8 @@ dev.eolmae.psms
 
 - `Map`, `JsonNode` 등으로 타입을 뭉개는 방식 대신 명확한 DTO/Record를 사용한다.
 - `ResponseEntity`를 불필요하게 남용하지 않는다. 현재 Spring 생태계의 흐름은 컨트롤러가 도메인 객체나 DTO를 직접 반환하는 방식을 선호한다.
+- CustomException 구성(RuntimeException 상속, 이름은 BusinessException 정도면 될 듯), 공통 예외 핸들러를 만들어 BusinessException 에 대한 처리 및 오류 로그 출력(ResponseStatus 사용)
+- 각 대시보드 생성 중 발생가능한 Exception 에 해당하는 CustomException 구성 (BusinessException 상속), I/O Exception 이나 기타 하드웨어 혹은 딥한 예외까지 처리할 필요는 없음
 - 빠른 구현보다 읽는 사람이 의도를 바로 파악할 수 있는 코드를 우선한다.
 
 ---

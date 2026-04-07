@@ -1,16 +1,15 @@
 package dev.eolmae.psms.collector;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import dev.eolmae.psms.domain.common.MarketType;
 import dev.eolmae.psms.domain.dashboard.MarketOverview;
 import dev.eolmae.psms.domain.dashboard.MarketOverviewRepository;
 import dev.eolmae.psms.domain.dashboard.MarketOverviewSnapshot;
 import dev.eolmae.psms.domain.dashboard.MarketOverviewSnapshotRepository;
 import dev.eolmae.psms.external.kiwoom.KiwoomApiClient;
-import dev.eolmae.psms.external.kiwoom.KiwoomResponseParser;
+import dev.eolmae.psms.external.kiwoom.dto.Ka20001Request;
+import dev.eolmae.psms.external.kiwoom.dto.Ka20001Response;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -20,10 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 @RequiredArgsConstructor
 public class MarketOverviewCollector {
-
-	// ka20001: 업종현재가요청 (업종 카테고리)
-	private static final String API_PATH = "/api/dostk/sect";
-	private static final String TR_ID = "ka20001";
 
 	private final KiwoomApiClient kiwoomApiClient;
 	private final MarketOverviewRepository marketOverviewRepository;
@@ -41,41 +36,37 @@ public class MarketOverviewCollector {
 	}
 
 	private void collectForMarket(MarketType marketType, LocalDateTime snapshotTime) {
-		// mrkt_tp: 0=코스피, 1=코스닥
-		// inds_cd: 001=코스피종합, 101=코스닥
+		// mrkt_tp: 0=코스피, 1=코스닥 / inds_cd: 001=코스피종합, 101=코스닥
 		String mrktTp = marketType == MarketType.KOSPI ? "0" : "1";
 		String indsCd = marketType == MarketType.KOSPI ? "001" : "101";
 
-		JsonNode response = kiwoomApiClient.post(
-			API_PATH,
-			TR_ID,
-			Map.of(
-				"mrkt_tp", mrktTp,
-				"inds_cd", indsCd
-			)
-		);
+		var request = new Ka20001Request(mrktTp, indsCd);
+		var response = kiwoomApiClient.post(request, Ka20001Response.class);
+		Ka20001Response.Output output = response.output();
 
-		JsonNode output = response.path("output");
 		LocalDateTime now = LocalDateTime.now();
 
-		// 확인된 응답 필드명 (포털 문서 기준)
-		BigDecimal indexValue = KiwoomResponseParser.parseBigDecimal(output, "cur_prc");
-		BigDecimal changeValue = KiwoomResponseParser.parseBigDecimal(output, "pred_pre");
-		BigDecimal changeRate = KiwoomResponseParser.parseBigDecimal(output, "flu_rt");
-		BigDecimal tradingValue = KiwoomResponseParser.parseBigDecimal(output, "trde_prica");
-		String marketStatus = KiwoomResponseParser.parseString(output, "mrkt_stat_cls_code");
-		int advancers = KiwoomResponseParser.parseInt(output, "rising");
-		int decliners = KiwoomResponseParser.parseInt(output, "fall");
-		int unchangedCount = KiwoomResponseParser.parseInt(output, "stdns");
+		BigDecimal indexValue = parseAmount(output.curPrc());
+		BigDecimal changeValue = parseAmount(output.predPre());
+		BigDecimal changeRate = parseAmount(output.fluRt());
+		BigDecimal tradingValue = parseAmount(output.trdePrica());
+		String marketStatus = output.mrktStatClsCode() != null ? output.mrktStatClsCode().trim() : "";
+		int upperLimitCount = parseCount(output.upl());
+		int lowerLimitCount = parseCount(output.lst());
+		int advancers = parseCount(output.rising());
+		int decliners = parseCount(output.fall());
+		int unchangedCount = parseCount(output.stdns());
 
 		MarketOverview overview = marketOverviewRepository.findByMarketType(marketType)
 			.map(existing -> {
 				existing.update(snapshotTime, now, marketStatus, indexValue, changeValue,
-					changeRate, tradingValue, advancers, decliners, unchangedCount);
+					changeRate, tradingValue, upperLimitCount, lowerLimitCount,
+					advancers, decliners, unchangedCount);
 				return existing;
 			})
 			.orElseGet(() -> MarketOverview.create(marketType, snapshotTime, now, marketStatus,
-				indexValue, changeValue, changeRate, tradingValue, advancers, decliners, unchangedCount));
+				indexValue, changeValue, changeRate, tradingValue,
+				upperLimitCount, lowerLimitCount, advancers, decliners, unchangedCount));
 
 		marketOverviewRepository.save(overview);
 
@@ -84,5 +75,23 @@ public class MarketOverviewCollector {
 		}
 
 		log.debug("시장종합 수집 완료: market={}, index={}", marketType, indexValue);
+	}
+
+	private static BigDecimal parseAmount(String value) {
+		if (value == null || value.isBlank() || "-".equals(value.trim())) return BigDecimal.ZERO;
+		try {
+			return new BigDecimal(value.replace(",", "").trim());
+		} catch (NumberFormatException e) {
+			return BigDecimal.ZERO;
+		}
+	}
+
+	private static int parseCount(String value) {
+		if (value == null || value.isBlank() || "-".equals(value.trim())) return 0;
+		try {
+			return Integer.parseInt(value.replace(",", "").trim());
+		} catch (NumberFormatException e) {
+			return 0;
+		}
 	}
 }

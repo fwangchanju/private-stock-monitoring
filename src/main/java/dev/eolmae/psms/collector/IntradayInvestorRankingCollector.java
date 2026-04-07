@@ -10,7 +10,7 @@ import dev.eolmae.psms.external.kiwoom.KiwoomApiClient;
 import dev.eolmae.psms.external.kiwoom.KiwoomResponseParser;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.EnumMap;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -28,22 +28,9 @@ public class IntradayInvestorRankingCollector {
 	private static final String API_PATH = "/api/dostk/rkinfo";
 	private static final String TR_ID = "ka10065";
 
-	// ka10065 orgn_tp 코드 매핑 (11종)
-	private static final Map<InvestorType, String> ORGN_TP_CODE = new EnumMap<>(Map.ofEntries(
-		Map.entry(InvestorType.FOREIGNER, "9000"),
-		Map.entry(InvestorType.INSTITUTION, "9999"),
-		Map.entry(InvestorType.FINANCIAL_INVESTMENT, "1000"),
-		Map.entry(InvestorType.INSURANCE, "2000"),
-		Map.entry(InvestorType.TRUST, "3000"),
-		Map.entry(InvestorType.BANK, "4000"),
-		Map.entry(InvestorType.OTHER_FINANCE, "5000"),
-		Map.entry(InvestorType.PENSION_FUND, "6000"),
-		Map.entry(InvestorType.GOVERNMENT, "7000"),
-		Map.entry(InvestorType.OTHER_CORP, "7100"),
-		Map.entry(InvestorType.FOREIGN_COMPANY, "9100")
-	));
-
-	private static final List<InvestorType> INVESTOR_TYPES = List.copyOf(ORGN_TP_CODE.keySet());
+	private static final List<InvestorType> INVESTOR_TYPES = Arrays.stream(InvestorType.values())
+		.filter(InvestorType::hasKa10065Code)
+		.toList();
 
 	private final KiwoomApiClient kiwoomApiClient;
 	private final IntradayInvestorRankingSnapshotRepository repository;
@@ -80,7 +67,7 @@ public class IntradayInvestorRankingCollector {
 		String mrktTp = marketType == MarketType.KOSPI ? "001" : "101";
 		// trde_tp: 1=순매수, 2=순매도
 		String trdeTp = rankingType == IntradayRankingType.NET_BUY ? "1" : "2";
-		String orgnTp = ORGN_TP_CODE.get(investorType);
+		String orgnTp = investorType.ka10065Code();
 
 		JsonNode response = kiwoomApiClient.post(
 			API_PATH,

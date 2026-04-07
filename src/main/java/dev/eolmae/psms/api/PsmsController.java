@@ -4,12 +4,14 @@ import dev.eolmae.psms.api.dto.DashboardResponse;
 import dev.eolmae.psms.api.dto.IndexContributionItem;
 import dev.eolmae.psms.api.dto.IntradayInvestorRankingItem;
 import dev.eolmae.psms.api.dto.NotificationSettingResponse;
+import dev.eolmae.psms.api.dto.ProgramTradingDailyHistoryItem;
 import dev.eolmae.psms.api.dto.ProgramTradingHistoryItem;
 import dev.eolmae.psms.api.dto.ProgramTradingRankingItem;
 import dev.eolmae.psms.api.dto.ShortSellingHistoryItem;
 import dev.eolmae.psms.api.dto.SnapshotResponse;
 import dev.eolmae.psms.api.dto.StockHistoryResponse;
 import dev.eolmae.psms.api.dto.WatchStockItem;
+import dev.eolmae.psms.domain.common.AmtQtyType;
 import dev.eolmae.psms.domain.common.IntradayRankingType;
 import dev.eolmae.psms.domain.common.InvestorType;
 import dev.eolmae.psms.domain.common.MarketType;
@@ -56,9 +58,12 @@ public class PsmsController {
 
 	@GetMapping("/program-trading-rankings")
 	public SnapshotResponse<ProgramTradingRankingItem> getProgramTradingRankings(
-		@RequestParam ProgramRankingType ranking
+		@RequestParam ProgramRankingType ranking,
+		@RequestParam(required = false) MarketType market,
+		@RequestParam(required = false) AmtQtyType amtQty
 	) {
-		return psmsQueryService.getProgramTradingRankings(ranking);
+		AmtQtyType resolvedAmtQty = amtQty != null ? amtQty : AmtQtyType.AMOUNT;
+		return psmsQueryService.getProgramTradingRankings(market, ranking, resolvedAmtQty);
 	}
 
 	// ── 지수 기여도 상위 상세 ─────────────────────────────────────────────
@@ -93,6 +98,15 @@ public class PsmsController {
 		@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to
 	) {
 		return psmsQueryService.getProgramTradingHistory(stockCode, from, to);
+	}
+
+	@GetMapping("/stocks/{stockCode}/program-trading/daily")
+	public StockHistoryResponse<ProgramTradingDailyHistoryItem> getProgramTradingDailyHistory(
+		@PathVariable String stockCode,
+		@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+		@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+	) {
+		return psmsQueryService.getProgramTradingDailyHistory(stockCode, from, to);
 	}
 
 	@GetMapping("/stocks/{stockCode}/short-selling")
