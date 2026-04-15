@@ -37,9 +37,10 @@ class Ka90003ProgramTradingRankingTest {
     void setUp() {
         var props = new KiwoomProperties(
             System.getenv("KIWOOM_APP_KEY"),
-            System.getenv("KIWOOM_SECRET")
+            System.getenv("KIWOOM_SECRET"),
+            100L
         );
-        kiwoomApiClient = new KiwoomApiClient(props, new KiwoomTokenManager(props));
+        kiwoomApiClient = new KiwoomApiClient(props, new KiwoomTokenManager(props), new ObjectMapper());
     }
 
     @Test
