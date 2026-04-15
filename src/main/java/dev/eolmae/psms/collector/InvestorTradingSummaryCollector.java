@@ -72,7 +72,6 @@ public class InvestorTradingSummaryCollector {
 		LocalDateTime now = LocalDateTime.now();
 
 		// 응답에서 순매수 금액만 제공 (매수/매도 금액은 미제공)
-		// ind_netprps=개인, frgnr_netprps=외국인, orgn_netprps=기관계
 		saveInvestorSummary(marketType, InvestorType.PERSONAL,
 			KiwoomResponseParser.parseBigDecimal(compositeItem, "ind_netprps"),
 			snapshotTime, now);
@@ -81,6 +80,36 @@ public class InvestorTradingSummaryCollector {
 			snapshotTime, now);
 		saveInvestorSummary(marketType, InvestorType.INSTITUTION,
 			KiwoomResponseParser.parseBigDecimal(compositeItem, "orgn_netprps"),
+			snapshotTime, now);
+		saveInvestorSummary(marketType, InvestorType.FINANCIAL_INVESTMENT,
+			KiwoomResponseParser.parseBigDecimal(compositeItem, "sc_netprps"),
+			snapshotTime, now);
+		saveInvestorSummary(marketType, InvestorType.TRUST,
+			KiwoomResponseParser.parseBigDecimal(compositeItem, "invtrt_netprps"),
+			snapshotTime, now);
+		saveInvestorSummary(marketType, InvestorType.PENSION_FUND,
+			KiwoomResponseParser.parseBigDecimal(compositeItem, "endw_netprps"),
+			snapshotTime, now);
+		saveInvestorSummary(marketType, InvestorType.PRIVATE_FUND,
+			KiwoomResponseParser.parseBigDecimal(compositeItem, "samo_fund_netprps"),
+			snapshotTime, now);
+		saveInvestorSummary(marketType, InvestorType.INSURANCE,
+			KiwoomResponseParser.parseBigDecimal(compositeItem, "insrnc_netprps"),
+			snapshotTime, now);
+		saveInvestorSummary(marketType, InvestorType.BANK,
+			KiwoomResponseParser.parseBigDecimal(compositeItem, "bank_netprps"),
+			snapshotTime, now);
+		saveInvestorSummary(marketType, InvestorType.OTHER_CORP,
+			KiwoomResponseParser.parseBigDecimal(compositeItem, "etc_corp_netprps"),
+			snapshotTime, now);
+		saveInvestorSummary(marketType, InvestorType.GOVERNMENT,
+			KiwoomResponseParser.parseBigDecimal(compositeItem, "natn_netprps"),
+			snapshotTime, now);
+		saveInvestorSummary(marketType, InvestorType.OTHER_FINANCE,
+			KiwoomResponseParser.parseBigDecimal(compositeItem, "jnsinkm_netprps"),
+			snapshotTime, now);
+		saveInvestorSummary(marketType, InvestorType.FOREIGN_COMPANY,
+			KiwoomResponseParser.parseBigDecimal(compositeItem, "native_trmt_frgnr_netprps"),
 			snapshotTime, now);
 
 		log.debug("투자자별매매종합 수집 완료: market={}", marketType);
