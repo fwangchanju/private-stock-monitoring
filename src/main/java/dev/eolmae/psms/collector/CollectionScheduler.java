@@ -25,10 +25,9 @@ public class CollectionScheduler {
 	private final StockMasterCollector stockMasterCollector;
 
 	/**
-	 * 장중 시장 데이터 수집: 평일 09:00~15:30, 5분 간격
-	 * 시장 마감 후(15:35 이후)에도 1~2회 추가 실행될 수 있으나 API 응답이 그대로 오므로 무해함
+	 * 장중 시장 데이터 수집: 평일 09:00~15:00, 1시간 간격
 	 */
-	@Scheduled(cron = "0 */5 9-15 * * MON-FRI", zone = "Asia/Seoul")
+	@Scheduled(cron = "0 0 9-15 * * MON-FRI", zone = "Asia/Seoul")
 	public void collectMarketData() {
 		LocalDateTime snapshotTime = resolveSnapshotTime();
 		log.info("장중 시장 데이터 수집 시작: snapshotTime={}", snapshotTime);
@@ -80,13 +79,12 @@ public class CollectionScheduler {
 	}
 
 	/**
-	 * snapshotTime: 현재 시각을 5분 단위로 내림 처리한 논리적 기준 시각
-	 * 예) 09:07:32 → 09:05:00 / 10:00:12 → 10:00:00
+	 * snapshotTime: 현재 시각을 1시간 단위로 내림 처리한 논리적 기준 시각
+	 * 예) 09:07:32 → 09:00:00 / 10:00:12 → 10:00:00
 	 */
 	private LocalDateTime resolveSnapshotTime() {
 		LocalDateTime now = LocalDateTime.now(KST);
-		int minute = (now.getMinute() / 5) * 5;
-		return now.withMinute(minute).withSecond(0).withNano(0);
+		return now.withMinute(0).withSecond(0).withNano(0);
 	}
 
 	private void runSafely(String collectorName, Runnable task) {

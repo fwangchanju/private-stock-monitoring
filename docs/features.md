@@ -10,7 +10,7 @@
 - 저장 전략: `latest` — `market_overview` 테이블에 시장별 1건을 upsert
 - 주요 수집 필드: 지수값, 등락값/율, 거래대금, 상한가/하한가 수, 상승/하락/보합 종목 수
 - API: `GET /api/dashboard` 의 `marketOverviews` 배열로 제공
-- 스케줄: 평일 09:00~15:59 5분마다 (`collectMarketData()` 내 포함)
+- 스케줄: 평일 09:00~15:00 1시간마다 (`collectMarketData()` 내 포함)
 
 ---
 
@@ -21,7 +21,7 @@
 - 업종코드 001(코스피종합) / 101(코스닥종합) 기준 조회, `stex_tp=1` (KRX only)
 - 수집 투자자 13종: 개인, 외국인, 기관계, 금융투자, 투신, 연기금, 사모펀드, 보험, 은행, 기타법인, 국가, 종금, 국내처리외국인
 - API: `GET /api/dashboard` 의 `investorTradingSummaries` 배열로 제공
-- 스케줄: 평일 09:00~15:59 5분마다
+- 스케줄: 평일 09:00~15:00 1시간마다
 
 ---
 
@@ -32,7 +32,7 @@
 - 한 수집 사이클당 KOSPI/KOSDAQ × orgn_tp 11종 × 순매수/순매도 = 44회 호출
 - orgn_tp 코드: 9000(외국인), 9999(기관계), 1000(금융투자), 2000(보험), 3000(투신), 4000(은행), 5000(기타금융), 6000(연기금), 7000(국가), 7100(기타법인), 9100(외국계)
 - API: `GET /api/intraday-rankings?market=KOSPI&investor=FOREIGNER&ranking=NET_BUY`
-- 스케줄: 평일 09:00~15:59 5분마다
+- 스케줄: 평일 09:00~15:00 1시간마다
 
 ---
 
@@ -44,7 +44,7 @@
 - `stk_cd` 필드의 `_AL` 접미사 제거 후 저장
 - API: `GET /api/program-trading-rankings?market=KOSPI&ranking=NET_BUY&amtQty=AMOUNT`
   - `market` 생략 시 KOSPI+KOSDAQ 합산 후 순매수 금액 기준 재정렬
-- 스케줄: 평일 09:00~15:59 5분마다
+- 스케줄: 평일 09:00~15:00 1시간마다
 
 ---
 
@@ -84,7 +84,7 @@
   - 전일 지수값: `MarketOverview.indexValue - MarketOverview.changeValue` 로 역산
   - 중복 스냅샷 방지: `snapshotTime` 기준 이미 존재하면 스킵
 - API: `GET /api/index-contribution-rankings?market=KOSPI&snapshotTime=...`
-- 스케줄: 평일 09:00~15:59 5분마다
+- 스케줄: 평일 09:00~15:00 1시간마다
 
 ---
 
