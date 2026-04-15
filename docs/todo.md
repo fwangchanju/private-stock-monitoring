@@ -56,6 +56,25 @@
 
 ---
 
+## KRX 크롤링 세션 관리
+
+- KRX 데이터 포털(`data.krx.co.kr`)이 로그인 필수 정책으로 변경됨 → 세션 쿠키 없으면 LOGOUT 반환
+- **해결 완료**: 브라우저 로그인 후 쿠키를 `~/env/krx-login-cookie` 파일에 저장, `KrxCrawler`가 매 요청마다 파일에서 읽어 사용
+- 세션 만료 시 텔레그램 알림 1회 발송, 이후 수집 자동 스킵. 쿠키 파일 갱신 시 자동 재개.
+
+**쿠키 갱신 방법** (세션 만료 알림 수신 시):
+1. 브라우저에서 `data.krx.co.kr` 로그인
+2. 로그인 후 메인화면이 아닌 **실제 데이터 화면**(공매도 거래 상위 종목, 전종목 시세 등)까지 이동 후 쿠키 복사 (권한이 다를 수 있음)
+3. F12 → Application → Cookies → `https://data.krx.co.kr`
+4. `~/env/krx-login-cookie` 파일에서 `__smVisitorID`, `JSESSIONID` 값 교체
+   ```
+   __smVisitorID=새값
+   JSESSIONID=새값
+   lang=ko_KR
+   mdc.client_session=true
+   ```
+5. 파일 저장 → 다음 수집 주기부터 자동 재개 (앱 재기동 불필요)
+
 ## 참고
 
 - 키움증권 REST API 키/토큰 1년마다 갱신 필요 → 갱신 방안 수립 필요
@@ -79,5 +98,12 @@
    - Node.js + Express + Puppeteer (별도 Docker 컨테이너)
    - 수집 완료 후 Spring Boot → screenshot 서비스 HTTP 요청 → `sendPhoto` 발송
    - 프론트엔드: 수동 발송 트리거 버튼 추가 여부 검토
+
+# 남은 작업 진행 순서
+1. 백엔드 수집 기능 관련 테스트
+2. 스크린샷
+3. 로그인 개선
+4. UI
+5. 패키지 경로 바꾸기, 이미지 이름 변경
 
 
