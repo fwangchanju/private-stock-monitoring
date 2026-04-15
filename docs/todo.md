@@ -64,11 +64,20 @@
 
 ## TODO List
 
-1. GHCR 이미지 패키지명 변경: psms → psms-backend, psms-nginx → psms-frontend (GHCR, docker-compose.yml, GitHub Actions 세 곳 함께 수정)
-2. API 수집 및 적재 비즈니스 재설계 필요 (상세 내용: docs/plan.md 참고)
-3. deploy 폴더 내부에 있는 nginx 관련 설정(아마 docker-compose.yml) front 로 경로 변경
-4. http ssl 고민필요
-5. id password 방식 로그인 번거로움
-6. ui 개선(지금은 대중적인 느낌), NO CSS 인가 그걸로 윈도우 97? 98 느낌 UI 좀 까리하던데.
+1. ❌ GHCR 이미지 패키지명 변경: `psms` → `psms-backend`, `psms-nginx` → `psms-frontend` (GHCR, docker-compose.yml, GitHub Actions 세 곳 함께 수정)
+2. ✅ API 수집 및 적재 비즈니스 재설계 (7개 수집기 + KRX 크롤러 구현 완료)
+3. ❌ `deploy/nginx/` 폴더명 → `deploy/front/` 로 변경 (docker-compose.yml, GitHub Actions, Dockerfile 경로 함께 수정)
+4. ✅ HTTPS 적용 완료 (Duck DNS + Certbot, eolmae.duckdns.org)
+5. ❌ 로그인 개선: 현재 Nginx Basic Auth — 번거로움 해소 방안 검토 필요
+6. ❌ UI 개선: 현재 일반적인 React UI → 레트로 스타일 라이브러리 검토
+   - **98.css**: Windows 98 스타일 (버튼, 창, 타이틀바 등 완벽 재현)
+   - **XP.css**: Windows XP 스타일
+   - **NES.css**: 8비트 픽셀 아트 스타일 (닌텐도 NES 느낌)
+   - **Terminal.css** 계열: DOS/터미널 느낌 (흑백 or 녹색 글자)
+   - 두 방향(98.css 계열 vs Terminal 계열) 각각 프로토타입 적용 후 비교해서 결정 예정
+7. ❌ 텔레그램 이미지 자동 발송: `psms-screenshot` 컨테이너 구현 필요
+   - Node.js + Express + Puppeteer (별도 Docker 컨테이너)
+   - 수집 완료 후 Spring Boot → screenshot 서비스 HTTP 요청 → `sendPhoto` 발송
+   - 프론트엔드: 수동 발송 트리거 버튼 추가 여부 검토
 
 
