@@ -13,7 +13,7 @@
 ```
 
 ### 수집
-- **장중 주기 수집이 전제**다. 수집 주기는 현재 1시간 단위, 추후 사용자가 직접 설정 가능하도록 확장 예정.
+- **장중 주기 수집이 전제**다. 수집 주기는 현재 5분 단위, 추후 사용자가 직접 설정 가능하도록 확장 예정.
 - **30분 내외의 딜레이는 허용**한다. 일 단위(T+1) 데이터는 이 서비스의 목적에 부합하지 않는다.
 - **7개 대시보드는 모두 구현 목표다.** 단, 특정 대시보드의 데이터 소스가 T+1밖에 없는 경우, 해당 대시보드를 포기하는 것이 아니라 장중 실시간에 준하는 다른 소스나 연산 방식을 먼저 모색한다.
 
@@ -59,7 +59,7 @@ Oracle Free Tier AMD 서버 2대.
 1번 서버 `~/env/private-stock-monitoring.env`. **비밀값만** 관리:
 - `DB_APP_PASSWD`, `DB_ADM_PASSWD`
 - `KIWOOM_APP_KEY`, `KIWOOM_SECRET`
-- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
+- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `DEVELOPER_CHAT_ID`
 
 비밀값이 아닌 설정(host, port, username 등)은 `application-prod.properties`에 하드코딩.
 
@@ -81,9 +81,12 @@ dev.eolmae.psms
 │   ├── stock/         # StockMaster, WatchStock
 │   ├── dashboard/     # MarketOverview, InvestorTradingSummary, snapshot 류
 │   └── history/       # ProgramTradingHistory, ShortSellingHistory
-├── external/          # 키움 API 연동 (미구현)
-├── collector/         # 수집 오케스트레이션 (미구현)
-└── notification/      # 텔레그램 발송 (미구현)
+├── exception/         # BusinessException, EscalateException, GlobalExceptionHandler
+├── external/
+│   ├── kiwoom/        # KiwoomApiClient, KiwoomTokenManager, DTO 류
+│   └── krx/           # KrxCrawler (KRX 데이터 포털 크롤링)
+├── collector/         # 수집 스케줄러 + 7개 Collector
+└── notification/      # TelegramClient, AlertService, TelegramPollingService, WatchStockBotHandler
 ```
 
 ---
@@ -95,9 +98,23 @@ dev.eolmae.psms
 - 조회 API / QueryService / DTO (빈 데이터 처리, 랭킹 상세 엔드포인트 포함)
 - Flyway 마이그레이션 V1 (스키마), V2 (샘플 데이터)
 - 1번 서버에서 prod 프로파일로 앱 정상 기동
-- 키움 API 연동 기반: KiwoomProperties, KiwoomTokenManager, KiwoomApiClient, KiwoomResponseParser
-- 수집기 전체 (collector/): 7개 Collector + CollectionScheduler — TR ID·경로·필드명 반영 완료 (IndexContributionRankingCollector 제외, 하단 참고)
-- 텔레그램 리마인더 (notification/): TelegramClient, TelegramNotifier, NotificationScheduler
+- 예외 처리 체계: `BusinessException` / `EscalateException` / `GlobalExceptionHandler` / `AlertService`
+- 키움 API 연동: KiwoomProperties, KiwoomTokenManager, KiwoomApiClient, KiwoomResponseParser, Request/Response DTO
+- KRX 크롤링: `KrxCrawler` — `data.krx.co.kr` POST 크롤러, OutBlock_1 파싱
+- 수집기 전체 (collector/): 7개 Collector + CollectionScheduler
+
+| 수집기 | 소스 | TR ID / bld |
+|---|---|---|
+| `MarketOverviewCollector` | 키움 | ka20001 — `/api/dostk/sect` |
+| `InvestorTradingSummaryCollector` | 키움 | ka10051 — `/api/dostk/sect` (13종 투자자) |
+| `IntradayInvestorRankingCollector` | 키움 | ka10065 — `/api/dostk/rkinfo` |
+| `ProgramTradingRankingCollector` | 키움 | ka90003 — `/api/dostk/stkinfo` |
+| `ProgramTradingCollector` | 키움 | ka90008 (장중) / ka90013 (일별) |
+| `ShortSellingCollector` | KRX | MDCSTAT30101 (전종목 → WatchStock 필터) |
+| `IndexContributionRankingCollector` | KRX | MDCSTAT01501 (시가총액 기반 기여도 직접 연산) |
+| `StockMasterCollector` | 키움 | ka10099 — `/api/dostk/stkinfo` |
+
+- 텔레그램 봇: `TelegramPollingService` + `WatchStockBotHandler` — `/add` `/del` `/list` 관심종목 관리
 - 프론트엔드: React + Vite + TypeScript 전체 구현
   - 대시보드 페이지 (6개 섹션)
   - 상세 페이지 4종 (장중랭킹, 프로그램매매, 지수기여도, 종목상세)
@@ -105,28 +122,9 @@ dev.eolmae.psms
 - dashboard.base-url: `https://eolmae.duckdns.org`
 - 배포 스크립트 분리: `deploy-app.sh` (앱만), `deploy-nginx.sh` (nginx만), `deploy.sh` (통합)
 - GitHub Actions CI/CD 파이프라인 완성 (빌드 → GHCR push → SSH 자동 배포까지 완전 자동화)
-- `KiwoomApiClient` 헤더명 `tr_id` → `api-id` 수정 완료
 
-**미완료 — IndexContributionRankingCollector**
-
-키움 API 문서에서 지수기여도 API를 찾지 못함. 아래 항목 포털 직접 확인 필요:
-- TR ID (현재 `FHPUP03800100`는 추정값)
-- API 경로 (현재 `/api/dostk/indcontrib`는 추정값)
-- 요청 파라미터명 및 응답 필드명
-
-나머지 6개 수집기 경로·파라미터·필드명은 API 문서 기준으로 반영 완료:
-
-| 수집기 | TR ID | API 경로 |
-|---|---|---|
-| `IntradayInvestorRankingCollector` | ka10065 | `/api/dostk/rkinfo` |
-| `ProgramTradingCollector` (랭킹) | ka90003 | `/api/dostk/stkinfo` |
-| `ProgramTradingCollector` (시간추이) | ka90008 | `/api/dostk/mrkcond` |
-| `ShortSellingCollector` | ka10014 | `/api/dostk/shsa` |
-| `StockMasterCollector` | ka10099 | `/api/dostk/stkinfo` |
-| `MarketOverviewCollector` | ka20001 | `/api/dostk/sect` |
-| `InvestorTradingSummaryCollector` | ka10051 | `/api/dostk/sect` |
-
-`IntradayInvestorRankingCollector`의 `orgn_tp` 코드(개인/기관)는 포털 확인 후 수정 필요. 외국인(`9000`)만 확인됨.
+**미완료**
+- 텔레그램 이미지 자동 발송: `psms-screenshot` 컨테이너(Node.js + Puppeteer) 미구현, 대시보드 버튼 → 이미지 캡처 → 텔레그램 sendPhoto 흐름 미구현
 
 
 ---
