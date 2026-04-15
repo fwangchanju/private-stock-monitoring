@@ -38,4 +38,13 @@ public class WatchStock {
 
 	protected WatchStock() {
 	}
+
+	public static WatchStock create(AppUser user, StockMaster stock, int displayOrder) {
+		var entity = new WatchStock();
+		entity.user = user;
+		entity.stock = stock;
+		entity.displayOrder = displayOrder;
+		entity.createdAt = LocalDateTime.now();
+		return entity;
+	}
 }
