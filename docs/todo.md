@@ -100,10 +100,11 @@
    - 프론트엔드: 수동 발송 트리거 버튼 추가 여부 검토
 
 # 남은 작업 진행 순서
-1. 백엔드 수집 기능 관련 테스트
-2. 스크린샷
-3. 로그인 개선
-4. UI
-5. 패키지 경로 바꾸기, 이미지 이름 변경
+1. KRX `extendSession.cmd` 25분 주기 호출 스케줄러 추가 (`CollectionScheduler` 또는 별도)
+2. 수집기 통합 테스트 (order1~8 전체, KRX 2개 포함)
+4. 로그인 개선
+5. UI 개선
+3. 스크린샷 (`psms-screenshot` 컨테이너)
+6. GHCR 이미지명 변경, deploy/nginx → deploy/front 경로 변경
 
 

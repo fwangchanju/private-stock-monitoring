@@ -39,6 +39,7 @@ import org.springframework.web.client.RestClient;
 public class KrxCrawler {
 
     private static final String KRX_DATA_URL = "https://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd";
+    private static final String KRX_EXTEND_SESSION_URL = "https://data.krx.co.kr/contents/MDC/MAIN/main/extendSession.cmd";
     private static final String KRX_REFERER = "https://data.krx.co.kr/contents/MDC/MDI/outerLoader/index.cmd";
 
     @Value("${krx.cookie-file}")
@@ -122,6 +123,33 @@ public class KrxCrawler {
         } catch (IOException e) {
             log.warn("KRX 쿠키 파일 읽기 실패: {}", e.getMessage());
             return null;
+        }
+    }
+
+    /**
+     * KRX 세션 연장 요청.
+     * 쿠키 없거나 세션 만료 상태면 조용히 스킵.
+     */
+    public void extendSession() {
+        String cookie = resolveSessionCookie();
+        if (cookie == null) {
+            log.debug("KRX 세션 연장 스킵 — 쿠키 없음 또는 만료 상태");
+            return;
+        }
+
+        try {
+            restClient.post()
+                .uri(KRX_EXTEND_SESSION_URL)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0")
+                .header("Referer", KRX_REFERER)
+                .header("X-Requested-With", "XMLHttpRequest")
+                .header("Cookie", cookie)
+                .retrieve()
+                .toBodilessEntity();
+            log.debug("KRX 세션 연장 완료");
+        } catch (Exception e) {
+            log.warn("KRX 세션 연장 실패: {}", e.getMessage());
         }
     }
 
