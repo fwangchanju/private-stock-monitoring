@@ -39,6 +39,9 @@ out/
 ### local gradle home ###
 .gradle-user-home/
 
+### Claude Code ###
+.claude/settings.local.json
+
 ### env files ###
 .env
 deploy/.env

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(deploy/.env)",
+      "Edit(deploy/.env)",
+      "Write(deploy/.env)"
+    ]
+  }
+}
