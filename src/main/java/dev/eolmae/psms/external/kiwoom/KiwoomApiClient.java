@@ -17,7 +17,7 @@ public class KiwoomApiClient {
 
 	private final KiwoomProperties properties;
 	private final KiwoomTokenManager tokenManager;
-	private final ObjectMapper objectMapper;
+	private final ObjectMapper objectMapper = new ObjectMapper();
 	private final RestClient restClient = RestClient.create();
 
 	/**
