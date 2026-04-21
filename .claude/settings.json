@@ -3,7 +3,10 @@
     "deny": [
       "Read(deploy/.env)",
       "Edit(deploy/.env)",
-      "Write(deploy/.env)"
+      "Write(deploy/.env)",
+      "Read(infra/.env)",
+      "Edit(infra/.env)",
+      "Write(infra/.env)"
     ]
   }
 }

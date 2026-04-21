@@ -45,6 +45,7 @@ out/
 ### env files ###
 .env
 deploy/.env
+infra
 
 ### Kiwoom API ###
 docs/키움 REST API 문서.*
