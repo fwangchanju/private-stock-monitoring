@@ -262,7 +262,15 @@ money=1
 
 ## 미결 / 구현 대기 항목
 
-### ① 텔레그램 이미지 자동 발송 (`psms-screenshot`)
+### ① 접근 제어 (개인용 서비스 보호)
+
+KRX 수집 데이터 재배포 불가.
+
+- **텔레그램 봇**: `TELEGRAM_CHAT_ID` + `DEVELOPER_CHAT_ID` 두 값으로 허용 여부 체크
+- **웹 접근 제어**: 허용 IP를 DB 테이블로 관리, 앱 기동 시 메모리 로드 → Nginx 또는 Spring Security 필터에서 차단
+  - 세부 구현 방식 미결정 (Nginx conf 재생성 vs Spring Security IP 필터 vs 두 레이어 조합)
+
+### ② 텔레그램 이미지 자동 발송 (`psms-screenshot`)
 
 **핵심 사이클**: 매 수집 완료 → 대시보드 캡처 → 텔레그램 이미지 발송
 
