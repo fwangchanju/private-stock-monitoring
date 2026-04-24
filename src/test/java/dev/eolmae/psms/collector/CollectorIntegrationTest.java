@@ -1,6 +1,7 @@
 package dev.eolmae.psms.collector;
 
 import dev.eolmae.psms.domain.dashboard.IndexContributionRankingSnapshotRepository;
+import dev.eolmae.psms.external.krx.KrxCrawler;
 import dev.eolmae.psms.domain.dashboard.IntradayInvestorRankingSnapshotRepository;
 import dev.eolmae.psms.domain.dashboard.InvestorTradingSummaryRepository;
 import dev.eolmae.psms.domain.dashboard.MarketOverviewRepository;
@@ -70,7 +71,10 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 @Slf4j
 @SpringBootTest
 @ActiveProfiles("prod")
-@TestPropertySource(properties = "spring.test.database.replace=none")
+@TestPropertySource(properties = {
+	"spring.test.database.replace=none",
+	"krx.cookie-file=infra/krx-login-cookie"
+})
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class CollectorIntegrationTest {
 
@@ -97,6 +101,7 @@ class CollectorIntegrationTest {
 	@Autowired ShortSellingHistoryRepository shortSellingHistoryRepository;
 	@Autowired IndexContributionRankingSnapshotRepository indexContributionRankingSnapshotRepository;
 	@Autowired WatchStockRepository watchStockRepository;
+	@Autowired KrxCrawler krxCrawler;
 
 	/** 스케줄러와 동일한 방식으로 snapshotTime 산출 (현재 시각을 1시간 단위로 내림) */
 	private LocalDateTime snapshotTime() {
@@ -233,5 +238,17 @@ class CollectorIntegrationTest {
 
 		long count = indexContributionRankingSnapshotRepository.count();
 		log.info("[8] IndexContributionRanking 수집 완료 — snapshotTime={}, 총 누적 스냅샷={}건", snapshotTime, count);
+	}
+
+	@Test
+	@Order(9)
+	void order9_krxSession_연장() {
+		// 선행 조건: KRX 쿠키 파일 존재
+		// 검증: extendSession 호출 시 예외 없이 완료되는지 확인
+		assumeTrue(!krxCookieFile.isBlank() && Files.exists(Paths.get(krxCookieFile)),
+			"KRX 쿠키 파일 없음 — KRX 테스트 스킵");
+
+		krxCrawler.extendSession();
+		log.info("[9] KRX 세션 연장 완료");
 	}
 }
