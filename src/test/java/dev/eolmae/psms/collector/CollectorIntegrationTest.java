@@ -9,6 +9,8 @@ import dev.eolmae.psms.domain.history.ProgramTradingHistoryRepository;
 import dev.eolmae.psms.domain.history.ShortSellingHistoryRepository;
 import dev.eolmae.psms.domain.stock.StockMasterRepository;
 import dev.eolmae.psms.domain.stock.WatchStockRepository;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -18,9 +20,10 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -67,11 +70,14 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 @Slf4j
 @SpringBootTest
 @ActiveProfiles("prod")
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@TestPropertySource(properties = "spring.test.database.replace=none")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class CollectorIntegrationTest {
 
 	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+
+	@Value("${krx.cookie-file:}")
+	private String krxCookieFile;
 
 	@Autowired StockMasterCollector stockMasterCollector;
 	@Autowired MarketOverviewCollector marketOverviewCollector;
@@ -195,6 +201,8 @@ class CollectorIntegrationTest {
 		//   → 텔레그램 봇 /add <종목코드> 로 등록하거나, order1 실행 후 DB에 직접 insert
 		// 주의: KRX 공매도 데이터는 당일 18:30 이후 확정
 		//       장중 실행 시 전일 데이터만 있거나 0건일 수 있음
+		assumeTrue(!krxCookieFile.isBlank() && Files.exists(Paths.get(krxCookieFile)),
+			"KRX 쿠키 파일 없음 — KRX 테스트 스킵");
 		long watchStockCount = watchStockRepository.count();
 		assumeTrue(watchStockCount > 0,
 			"관심종목 없음 — 텔레그램 봇 /add <종목코드> 로 종목 추가 후 재실행");
@@ -214,6 +222,8 @@ class CollectorIntegrationTest {
 		//   → order2(marketOverview_수집) 먼저 실행 후 진행 권장
 		// 검증: KOSPI/KOSDAQ 각 상위 50종목 스냅샷 저장 확인
 		//       장 외 시간에는 당일 데이터 없을 수 있으나 예외 없이 완료되어야 함
+		assumeTrue(!krxCookieFile.isBlank() && Files.exists(Paths.get(krxCookieFile)),
+			"KRX 쿠키 파일 없음 — KRX 테스트 스킵");
 		long marketOverviewCount = marketOverviewRepository.count();
 		assumeTrue(marketOverviewCount > 0,
 			"MarketOverview 데이터 없음 — order2(marketOverview_수집) 먼저 실행");

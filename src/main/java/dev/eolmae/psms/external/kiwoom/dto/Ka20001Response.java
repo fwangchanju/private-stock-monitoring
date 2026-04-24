@@ -6,29 +6,24 @@ import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record Ka20001Response(
-	@JsonProperty("output") Output output,
+	@JsonProperty("cur_prc") String curPrc,
+	@JsonProperty("pred_pre_sig") String predPreSig,
+	@JsonProperty("pred_pre") String predPre,
+	@JsonProperty("flu_rt") String fluRt,
+	@JsonProperty("trde_prica") String trdePrica,
+	@JsonProperty("trde_qty") String trdeQty,
+	@JsonProperty("trde_frmatn_stk_num") String trdeFramtnStkNum,
+	@JsonProperty("open_pric") String openPric,
+	@JsonProperty("high_pric") String highPric,
+	@JsonProperty("low_pric") String lowPric,
+	@JsonProperty("mrkt_stat_cls_code") String mrktStatClsCode,
+	@JsonProperty("upl") String upl,
+	@JsonProperty("rising") String rising,
+	@JsonProperty("stdns") String stdns,
+	@JsonProperty("fall") String fall,
+	@JsonProperty("lst") String lst,
 	@JsonProperty("inds_cur_prc_tm") List<PriceTick> priceTicks
 ) {
-
-	@JsonIgnoreProperties(ignoreUnknown = true)
-	public record Output(
-		@JsonProperty("cur_prc") String curPrc,
-		@JsonProperty("pred_pre_sig") String predPreSig,
-		@JsonProperty("pred_pre") String predPre,
-		@JsonProperty("flu_rt") String fluRt,
-		@JsonProperty("trde_prica") String trdePrica,
-		@JsonProperty("trde_qty") String trdeQty,
-		@JsonProperty("trde_frmatn_stk_num") String trdeFramtnStkNum,
-		@JsonProperty("open_pric") String openPric,
-		@JsonProperty("high_pric") String highPric,
-		@JsonProperty("low_pric") String lowPric,
-		@JsonProperty("mrkt_stat_cls_code") String mrktStatClsCode,
-		@JsonProperty("upl") String upl,
-		@JsonProperty("rising") String rising,
-		@JsonProperty("stdns") String stdns,
-		@JsonProperty("fall") String fall,
-		@JsonProperty("lst") String lst
-	) {}
 
 	@JsonIgnoreProperties(ignoreUnknown = true)
 	public record PriceTick(

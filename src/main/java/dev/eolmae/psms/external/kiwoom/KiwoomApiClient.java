@@ -44,7 +44,7 @@ public class KiwoomApiClient {
 	}
 
 	private JsonNode callApi(String path, String apiId, Object requestBody) {
-		JsonNode response = restClient.post()
+		String raw = restClient.post()
 			.uri(BASE_URL + path)
 			.contentType(MediaType.APPLICATION_JSON)
 			.header("authorization", "Bearer " + tokenManager.getToken())
@@ -53,12 +53,19 @@ public class KiwoomApiClient {
 			.header("api-id", apiId)
 			.body(requestBody)
 			.retrieve()
-			.body(JsonNode.class);
+			.body(String.class);
 
-		String rtCd = response.path("rt_cd").asText();
-		if (!"0".equals(rtCd)) {
-			log.warn("Kiwoom API 오류 응답: apiId={}, rt_cd={}, msg={}", apiId, rtCd, response.path("msg1").asText());
-			throw new KiwoomApiException("Kiwoom API 오류: " + response.path("msg1").asText());
+		JsonNode response;
+		try {
+			response = objectMapper.readTree(raw);
+		} catch (Exception e) {
+			throw new KiwoomApiException("Kiwoom API 응답 파싱 실패: " + raw, e);
+		}
+
+		String returnCode = response.path("return_code").asText();
+		if (!"0".equals(returnCode)) {
+			log.warn("Kiwoom API 오류 응답: apiId={}, return_code={}, msg={}", apiId, returnCode, response.path("return_msg").asText());
+			throw new KiwoomApiException("Kiwoom API 오류: " + response.path("return_msg").asText());
 		}
 
 		return response;

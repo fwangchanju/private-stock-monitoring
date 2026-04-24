@@ -42,20 +42,19 @@ public class MarketOverviewCollector {
 
 		var request = new Ka20001Request(mrktTp, indsCd);
 		var response = kiwoomApiClient.post(request, Ka20001Response.class);
-		Ka20001Response.Output output = response.output();
 
 		LocalDateTime now = LocalDateTime.now();
 
-		BigDecimal indexValue = parseAmount(output.curPrc());
-		BigDecimal changeValue = parseAmount(output.predPre());
-		BigDecimal changeRate = parseAmount(output.fluRt());
-		BigDecimal tradingValue = parseAmount(output.trdePrica());
-		String marketStatus = output.mrktStatClsCode() != null ? output.mrktStatClsCode().trim() : "";
-		int upperLimitCount = parseCount(output.upl());
-		int lowerLimitCount = parseCount(output.lst());
-		int advancers = parseCount(output.rising());
-		int decliners = parseCount(output.fall());
-		int unchangedCount = parseCount(output.stdns());
+		BigDecimal indexValue = parseAmount(response.curPrc());
+		BigDecimal changeValue = parseAmount(response.predPre());
+		BigDecimal changeRate = parseAmount(response.fluRt());
+		BigDecimal tradingValue = parseAmount(response.trdePrica());
+		String marketStatus = response.mrktStatClsCode() != null ? response.mrktStatClsCode().trim() : "";
+		int upperLimitCount = parseCount(response.upl());
+		int lowerLimitCount = parseCount(response.lst());
+		int advancers = parseCount(response.rising());
+		int decliners = parseCount(response.fall());
+		int unchangedCount = parseCount(response.stdns());
 
 		MarketOverview overview = marketOverviewRepository.findByMarketType(marketType)
 			.map(existing -> {
