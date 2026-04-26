@@ -16,12 +16,16 @@ import dev.eolmae.psms.domain.common.IntradayRankingType;
 import dev.eolmae.psms.domain.common.InvestorType;
 import dev.eolmae.psms.domain.common.MarketType;
 import dev.eolmae.psms.domain.common.ProgramRankingType;
+import dev.eolmae.psms.notification.DashboardSendService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -31,9 +35,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class PsmsController {
 
 	private final PsmsQueryService psmsQueryService;
+	private final Optional<DashboardSendService> dashboardSendService;
 
-	public PsmsController(PsmsQueryService psmsQueryService) {
+	public PsmsController(PsmsQueryService psmsQueryService, Optional<DashboardSendService> dashboardSendService) {
 		this.psmsQueryService = psmsQueryService;
+		this.dashboardSendService = dashboardSendService;
 	}
 
 	// ── 메인 대시보드 ─────────────────────────────────────────────────────
@@ -41,6 +47,12 @@ public class PsmsController {
 	@GetMapping("/dashboard")
 	public DashboardResponse getDashboard() {
 		return psmsQueryService.getDashboard();
+	}
+
+	@PostMapping("/send-dashboard")
+	public Map<String, Integer> sendDashboard() {
+		int sent = dashboardSendService.map(DashboardSendService::sendDashboard).orElse(0);
+		return Map.of("sent", sent);
 	}
 
 	// ── 장중 투자자별 매매 상위 상세 ─────────────────────────────────────────
