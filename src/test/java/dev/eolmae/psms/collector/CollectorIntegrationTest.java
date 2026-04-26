@@ -1,7 +1,9 @@
 package dev.eolmae.psms.collector;
 
 import dev.eolmae.psms.domain.dashboard.IndexContributionRankingSnapshotRepository;
+import dev.eolmae.psms.exception.EscalateException;
 import dev.eolmae.psms.external.krx.KrxCrawler;
+import dev.eolmae.psms.notification.AlertService;
 import dev.eolmae.psms.domain.dashboard.IntradayInvestorRankingSnapshotRepository;
 import dev.eolmae.psms.domain.dashboard.InvestorTradingSummaryRepository;
 import dev.eolmae.psms.domain.dashboard.MarketOverviewRepository;
@@ -12,6 +14,7 @@ import dev.eolmae.psms.domain.stock.StockMasterRepository;
 import dev.eolmae.psms.domain.stock.WatchStockRepository;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -102,10 +105,21 @@ class CollectorIntegrationTest {
 	@Autowired IndexContributionRankingSnapshotRepository indexContributionRankingSnapshotRepository;
 	@Autowired WatchStockRepository watchStockRepository;
 	@Autowired KrxCrawler krxCrawler;
+	@Autowired AlertService alertService;
 
 	/** 스케줄러와 동일한 방식으로 snapshotTime 산출 (현재 시각을 1시간 단위로 내림) */
 	private LocalDateTime snapshotTime() {
 		return LocalDateTime.now(KST).withMinute(0).withSecond(0).withNano(0);
+	}
+
+	/** 비거래일(토·일)이면 직전 금요일 날짜를 반환 */
+	private LocalDate lastTradingDay() {
+		LocalDate today = LocalDate.now(KST);
+		return switch (today.getDayOfWeek()) {
+			case SATURDAY -> today.minusDays(1);
+			case SUNDAY -> today.minusDays(2);
+			default -> today;
+		};
 	}
 
 	@Test
@@ -212,7 +226,7 @@ class CollectorIntegrationTest {
 		assumeTrue(watchStockCount > 0,
 			"관심종목 없음 — 텔레그램 봇 /add <종목코드> 로 종목 추가 후 재실행");
 
-		LocalDate tradeDate = LocalDate.now(KST);
+		LocalDate tradeDate = lastTradingDay();
 		shortSellingCollector.collect(tradeDate);
 
 		long count = shortSellingHistoryRepository.count();
@@ -233,7 +247,7 @@ class CollectorIntegrationTest {
 		assumeTrue(marketOverviewCount > 0,
 			"MarketOverview 데이터 없음 — order2(marketOverview_수집) 먼저 실행");
 
-		LocalDateTime snapshotTime = snapshotTime();
+		LocalDateTime snapshotTime = lastTradingDay().atTime(snapshotTime().toLocalTime());
 		indexContributionRankingCollector.collect(snapshotTime);
 
 		long count = indexContributionRankingSnapshotRepository.count();
@@ -250,5 +264,13 @@ class CollectorIntegrationTest {
 
 		krxCrawler.extendSession();
 		log.info("[9] KRX 세션 연장 완료");
+	}
+
+	@Test
+	@Order(10)
+	void order10_텔레그램_에스컬레이션_알림() {
+		// 검증: EscalateException 발생 시 DEVELOPER_CHAT_ID로 텔레그램 메시지가 발송되는지 확인
+		alertService.sendEscalation(new EscalateException("[테스트] 에스컬레이션 알림 발송 확인"));
+		log.info("[10] 텔레그램 에스컬레이션 알림 발송 완료 — 실제 수신 여부는 텔레그램에서 확인");
 	}
 }

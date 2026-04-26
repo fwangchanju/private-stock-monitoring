@@ -140,15 +140,14 @@ public class KrxCrawler {
         }
 
         try {
-            restClient.post()
+            restClient.get()
                 .uri(KRX_EXTEND_SESSION_URL)
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0")
                 .header("Referer", KRX_REFERER)
                 .header("X-Requested-With", "XMLHttpRequest")
                 .header("Cookie", cookie)
                 .retrieve()
-                .toBodilessEntity();
+                .body(String.class);
             log.debug("KRX 세션 연장 완료");
         } catch (Exception e) {
             log.warn("KRX 세션 연장 실패: {}", e.getMessage());
