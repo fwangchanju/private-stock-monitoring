@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getDashboard } from '../api/dashboard'
+import { getDashboard, sendDashboard } from '../api/dashboard'
 import type { DashboardResponse } from '../types/api'
 import { toDateTimeLabel } from '../utils/format'
 import MarketOverviewSection from '../components/MarketOverviewSection'
@@ -12,12 +12,23 @@ import WatchStockSection from '../components/WatchStockSection'
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [sending, setSending] = useState(false)
+  const [sendResult, setSendResult] = useState<string | null>(null)
 
   useEffect(() => {
     getDashboard()
       .then(setData)
       .catch(() => setError('데이터를 불러오지 못했습니다'))
   }, [])
+
+  const handleSend = () => {
+    setSending(true)
+    setSendResult(null)
+    sendDashboard()
+      .then(r => setSendResult(`${r.sent}개 발송 완료`))
+      .catch(() => setSendResult('발송 실패'))
+      .finally(() => setSending(false))
+  }
 
   if (error) return <div className="loading">{error}</div>
   if (!data) return <div className="loading">불러오는 중...</div>
@@ -36,6 +47,10 @@ export default function DashboardPage() {
           {data.marketStatus && (
             <span>{data.marketStatus}</span>
           )}
+          <button className="tab-btn" onClick={handleSend} disabled={sending}>
+            {sending ? '발송 중...' : '텔레그램 발송'}
+          </button>
+          {sendResult && <span style={{ fontSize: 11 }}>{sendResult}</span>}
         </div>
       </header>
       <div className="page">

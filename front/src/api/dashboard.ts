@@ -58,6 +58,9 @@ export const getProgramTradingHistory = (
     )
     .then(r => r.data)
 
+export const sendDashboard = () =>
+  client.post<{ sent: number }>('/send-dashboard').then(r => r.data)
+
 export const getShortSellingHistory = (
   stockCode: string,
   from: string,
