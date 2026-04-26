@@ -5,6 +5,7 @@ services:
     restart: always
     environment:
       - SPRING_PROFILES_ACTIVE=prod
+      - JAVA_TOOL_OPTIONS=-Xmx360m -XX:MaxMetaspaceSize=80m
       - DB_APP_PASSWD=${DB_APP_PASSWD}
       - DB_ADM_PASSWD=${DB_ADM_PASSWD}
       - KIWOOM_APP_KEY=${KIWOOM_APP_KEY}
@@ -15,6 +16,28 @@ services:
       - "8080"
     networks:
       - backend
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  psms-renderer:
+    image: ghcr.io/fwangchanju/psms-renderer:latest
+    container_name: psms-renderer
+    restart: always
+    environment:
+      - DASHBOARD_URL=http://nginx
+      - DASHBOARD_USER=${DASHBOARD_USER}
+      - DASHBOARD_PASS=${DASHBOARD_PASS}
+    expose:
+      - "3000"
+    networks:
+      - backend
+    shm_size: '128m'
+    deploy:
+      resources:
+        limits:
+          memory: 384m
 
 networks:
   backend:

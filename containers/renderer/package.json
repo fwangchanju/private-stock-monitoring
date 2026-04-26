@@ -1,0 +1,13 @@
+{
+  "name": "psms-renderer",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.0",
+    "playwright": "^1.40.0"
+  }
+}
