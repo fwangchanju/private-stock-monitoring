@@ -44,7 +44,8 @@
 
 ## 텔레그램 작업
 
-- ❌ 메시지에 포함할 대시보드 링크 실제 동작 확인
+- ✅ 텔레그램 봇 sendPhoto 구현 완료
+- ❌ 수집 완료 후 자동 발송 스케줄 연동 (현재 수동 버튼만)
 
 ## 운영 확인 작업
 
@@ -58,22 +59,9 @@
 
 ## KRX 크롤링 세션 관리
 
-- KRX 데이터 포털(`data.krx.co.kr`)이 로그인 필수 정책으로 변경됨 → 세션 쿠키 없으면 LOGOUT 반환
-- **해결 완료**: 브라우저 로그인 후 쿠키를 `~/env/krx-login-cookie` 파일에 저장, `KrxCrawler`가 매 요청마다 파일에서 읽어 사용
-- 세션 만료 시 텔레그램 알림 1회 발송, 이후 수집 자동 스킵. 쿠키 파일 갱신 시 자동 재개.
-
-**쿠키 갱신 방법** (세션 만료 알림 수신 시):
-1. 브라우저에서 `data.krx.co.kr` 로그인
-2. 로그인 후 메인화면이 아닌 **실제 데이터 화면**(공매도 거래 상위 종목, 전종목 시세 등)까지 이동 후 쿠키 복사 (권한이 다를 수 있음)
-3. F12 → Application → Cookies → `https://data.krx.co.kr`
-4. `~/env/krx-login-cookie` 파일에서 `__smVisitorID`, `JSESSIONID` 값 교체
-   ```
-   __smVisitorID=새값
-   JSESSIONID=새값
-   lang=ko_KR
-   mdc.client_session=true
-   ```
-5. 파일 저장 → 다음 수집 주기부터 자동 재개 (앱 재기동 불필요)
+- KRX 데이터 포털(`data.krx.co.kr`) 로그인 필수 정책 → 세션 쿠키 없으면 LOGOUT 반환
+- 현재: 쿠키 파일(`~/env/krx-login-cookie`) 수동 관리 방식
+- **변경 예정**: 매 수집 전 자동 로그인으로 대체 (쿠키 파일 방식 제거)
 
 ## 참고
 
@@ -83,28 +71,76 @@
 
 ## TODO List
 
-1. ❌ GHCR 이미지 패키지명 변경: `psms` → `psms-backend`, `psms-nginx` → `psms-frontend` (GHCR, docker-compose.yml, GitHub Actions 세 곳 함께 수정)
+1. ❌ GHCR 이미지 패키지명 변경: `psms` → `psms-backend`, `psms-nginx` → `psms-frontend` (mini PC 이전 시 함께 처리)
 2. ✅ API 수집 및 적재 비즈니스 재설계 (7개 수집기 + KRX 크롤러 구현 완료)
-3. ❌ `deploy/nginx/` 폴더명 → `deploy/front/` 로 변경 (docker-compose.yml, GitHub Actions, Dockerfile 경로 함께 수정)
+3. ✅ `deploy/nginx/` → `containers/front/` 구조 개편 완료
 4. ✅ HTTPS 적용 완료 (Duck DNS + Certbot, eolmae.duckdns.org)
-5. ❌ 로그인 개선: 현재 Nginx Basic Auth — 번거로움 해소 방안 검토 필요
-6. ❌ UI 개선: 현재 일반적인 React UI → 레트로 스타일 라이브러리 검토
-   - **98.css**: Windows 98 스타일 (버튼, 창, 타이틀바 등 완벽 재현)
-   - **XP.css**: Windows XP 스타일
-   - **NES.css**: 8비트 픽셀 아트 스타일 (닌텐도 NES 느낌)
-   - **Terminal.css** 계열: DOS/터미널 느낌 (흑백 or 녹색 글자)
-   - 두 방향(98.css 계열 vs Terminal 계열) 각각 프로토타입 적용 후 비교해서 결정 예정
-7. ❌ 텔레그램 이미지 자동 발송: `psms-screenshot` 컨테이너 구현 필요
-   - Node.js + Express + Puppeteer (별도 Docker 컨테이너)
-   - 수집 완료 후 Spring Boot → screenshot 서비스 HTTP 요청 → `sendPhoto` 발송
-   - 프론트엔드: 수동 발송 트리거 버튼 추가 여부 검토
-
-# 남은 작업 진행 순서
-1. KRX `extendSession.cmd` 25분 주기 호출 스케줄러 추가 (`CollectionScheduler` 또는 별도)
-2. 수집기 통합 테스트 (order1~8 전체, KRX 2개 포함)
-4. 로그인 개선
-5. UI 개선
-3. 스크린샷 (`psms-screenshot` 컨테이너)
-6. GHCR 이미지명 변경, deploy/nginx → deploy/front 경로 변경
+5. ❌ 로그인 개선: 현재 Nginx Basic Auth — mini PC 이전 후 검토
+6. ❌ UI 개선: 레트로 스타일 프로토타입 3종 구현됨 (`/a` DOS, `/b` 98, `/c` NES) — 최종 스타일 미결정
+7. 🔄 텔레그램 이미지 발송: `psms-renderer` 컨테이너 구현 완료, 수동 버튼 구현됨 — end-to-end 테스트 및 자동 발송 연동 필요
 
 
+---
+
+## 방향 전환 정리
+
+### 배경
+
+- 오라클 프리티어 AMD(1GB RAM) → **mini PC(32GB Memory, 1TB Disk)** 로 이전 예정
+- 현재 레포지토리는 신규생성 x, 이름만 변경. 커밋 이력.
+
+### 인프라 변경 (확정)
+
+| 항목 | 현재 | 변경 후 |
+|---|---|---|
+| 서버 | Oracle Free Tier AMD 2대 | mini PC 단일 호스트 |
+| DB | MariaDB 10.6 | PostgreSQL |
+| GitHub Actions 배포 대상 | Oracle 서버 SSH | mini PC SSH |
+
+### 프로젝트 구조 변경 (확정)
+
+- **레포지토리 이름 변경**: `private-stock-monitoring` → 추후 결정
+- **프론트엔드 분리**: 별도 레포지토리로 분리
+- **nginx 설정 재구성**: 멀티 앱 라우팅 대응
+
+### 기능 방향 추가 (중장기)
+
+- 수집 데이터 이력 기반 이상 감지: 현재 사이클 수집값 vs 과거 동일 시간대 추이 비교
+  - 예) 외국인 순매수가 평소 +100억대인데 이번에 -1500억 → 알림 트리거
+- 로컬 LLM 연동: 이상 감지 이벤트 발생 시 원인 분석 (외부 API 미사용)
+- 뉴스 수집 + 임베딩 (필요 시): PostgreSQL 전환 이유 중 하나
+
+### 당장 영향 없는 것
+
+- 비즈니스 로직(수집기, API, 대시보드 구조)은 그대로 유지
+- 현재 진행 중인 KRX 자동 로그인, 스크린샷 발송 기능은 계속 개발
+
+### 이전 시 주요 작업 목록 (mini PC 준비되면)
+
+- [ ] PostgreSQL 마이그레이션 (Flyway 스크립트 재작성)
+- [ ] 레포지토리 이름 변경 및 프론트 분리
+- [ ] GitHub Actions 배포 대상 서버 변경
+- [ ] nginx 재구성
+- [ ] psms-renderer 서버 2 이전 → mini PC 이전으로 대체
+
+---
+
+## 작업 순서 (현재 기준)
+
+### mini PC 도착 전 — 기능 완성
+
+1. **KRX 자동 로그인 구현**
+   - `KrxLoginTest` 기반 OkHttp 로그인 흐름을 `KrxCrawler`에 통합
+   - 매 KRX 수집 전 자동 로그인 → 쿠키 획득 → 요청 흐름으로 대체
+   - 쿠키 파일 수동 관리 방식 및 `extendSession` 제거
+
+2. **수집 스케줄링 정리 및 통합 테스트**
+   - `CollectionScheduler`에서 extendSession 호출 제거
+   - 로컬 Docker 환경에서 수집기 통합 테스트 (order1~10)
+
+3. **스크린샷 발송 end-to-end 테스트**
+   - 로컬 Docker로 renderer 컨테이너 기동 후 전체 흐름 확인
+
+### mini PC 도착 후 — 인프라 마이그레이션
+
+4. 위 "이전 시 주요 작업 목록" 순서대로 진행
