@@ -10,6 +10,8 @@ public record MarketOverviewItem(
 	BigDecimal changeValue,
 	BigDecimal changeRate,
 	BigDecimal tradingValue,
+	int upperLimitCount,
+	int lowerLimitCount,
 	int advancers,
 	int decliners,
 	int unchangedCount

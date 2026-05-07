@@ -1,5 +1,7 @@
 package dev.eolmae.psms.domain.dashboard;
 
+import dev.eolmae.psms.domain.common.AmtQtyType;
+import dev.eolmae.psms.domain.common.MarketType;
 import dev.eolmae.psms.domain.common.ProgramRankingType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -21,6 +23,14 @@ public class ProgramTradingRankingSnapshot {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
+
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 20)
+	private MarketType marketType;
+
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 20)
+	private AmtQtyType amtQtyType;
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 20)
@@ -53,11 +63,14 @@ public class ProgramTradingRankingSnapshot {
 	protected ProgramTradingRankingSnapshot() {
 	}
 
-	public static ProgramTradingRankingSnapshot create(ProgramRankingType rankingType, int rank,
+	public static ProgramTradingRankingSnapshot create(
+		MarketType marketType, AmtQtyType amtQtyType, ProgramRankingType rankingType, int rank,
 		String stockCode, String stockName,
 		BigDecimal programBuyAmount, BigDecimal programSellAmount, BigDecimal programNetBuyAmount,
 		LocalDateTime snapshotTime) {
 		var entity = new ProgramTradingRankingSnapshot();
+		entity.marketType = marketType;
+		entity.amtQtyType = amtQtyType;
 		entity.rankingType = rankingType;
 		entity.rank = rank;
 		entity.stockCode = stockCode;

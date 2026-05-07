@@ -5,11 +5,13 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "stock.collection.enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class CollectionScheduler {
 
@@ -18,16 +20,16 @@ public class CollectionScheduler {
 	private final MarketOverviewCollector marketOverviewCollector;
 	private final InvestorTradingSummaryCollector investorTradingSummaryCollector;
 	private final IntradayInvestorRankingCollector intradayInvestorRankingCollector;
-	private final IndexContributionRankingCollector indexContributionRankingCollector;
+	private final ProgramTradingRankingCollector programTradingRankingCollector;
 	private final ProgramTradingCollector programTradingCollector;
+	private final IndexContributionRankingCollector indexContributionRankingCollector;
 	private final ShortSellingCollector shortSellingCollector;
 	private final StockMasterCollector stockMasterCollector;
 
 	/**
-	 * 장중 시장 데이터 수집: 평일 09:00~15:30, 5분 간격
-	 * 시장 마감 후(15:35 이후)에도 1~2회 추가 실행될 수 있으나 API 응답이 그대로 오므로 무해함
+	 * 장중 시장 데이터 수집: 평일 09:00~15:00, 1시간 간격
 	 */
-	@Scheduled(cron = "0 */5 9-15 * * MON-FRI", zone = "Asia/Seoul")
+	@Scheduled(cron = "0 0 9-15 * * MON-FRI", zone = "Asia/Seoul")
 	public void collectMarketData() {
 		LocalDateTime snapshotTime = resolveSnapshotTime();
 		log.info("장중 시장 데이터 수집 시작: snapshotTime={}", snapshotTime);
@@ -35,17 +37,28 @@ public class CollectionScheduler {
 		runSafely("시장종합", () -> marketOverviewCollector.collect(snapshotTime));
 		runSafely("투자자별매매종합", () -> investorTradingSummaryCollector.collect(snapshotTime));
 		runSafely("장중투자자랭킹", () -> intradayInvestorRankingCollector.collect(snapshotTime));
+		runSafely("프로그램매매랭킹", () -> programTradingRankingCollector.collect(snapshotTime));
+		runSafely("프로그램매매히스토리", () -> programTradingCollector.collect(snapshotTime));
 		runSafely("지수기여도랭킹", () -> indexContributionRankingCollector.collect(snapshotTime));
-		runSafely("프로그램매매", () -> programTradingCollector.collect(snapshotTime));
 
 		log.info("장중 시장 데이터 수집 완료: snapshotTime={}", snapshotTime);
 	}
 
 	/**
-	 * 공매도 데이터 수집: 평일 16:00 (장 마감 후 1회)
-	 * 공매도 데이터는 일 단위 데이터이므로 장 마감 후 1회 수집
+	 * 프로그램매매 일별 이력 수집: 평일 16:00 (장 마감 후 1회)
 	 */
 	@Scheduled(cron = "0 0 16 * * MON-FRI", zone = "Asia/Seoul")
+	public void collectProgramTradingDaily() {
+		LocalDate tradeDate = LocalDate.now(KST);
+		log.info("프로그램매매 일별 이력 수집 시작: tradeDate={}", tradeDate);
+		runSafely("프로그램매매일별", () -> programTradingCollector.collectDaily(tradeDate));
+		log.info("프로그램매매 일별 이력 수집 완료: tradeDate={}", tradeDate);
+	}
+
+	/**
+	 * 공매도 데이터 수집: 평일 19:00 (당일 자료 18:30 이후 제공)
+	 */
+	@Scheduled(cron = "0 0 19 * * MON-FRI", zone = "Asia/Seoul")
 	public void collectShortSelling() {
 		LocalDate tradeDate = LocalDate.now(KST);
 		log.info("공매도 데이터 수집 시작: tradeDate={}", tradeDate);
@@ -68,13 +81,12 @@ public class CollectionScheduler {
 	}
 
 	/**
-	 * snapshotTime: 현재 시각을 5분 단위로 내림 처리한 논리적 기준 시각
-	 * 예) 09:07:32 → 09:05:00 / 10:00:12 → 10:00:00
+	 * snapshotTime: 현재 시각을 1시간 단위로 내림 처리한 논리적 기준 시각
+	 * 예) 09:07:32 → 09:00:00 / 10:00:12 → 10:00:00
 	 */
 	private LocalDateTime resolveSnapshotTime() {
 		LocalDateTime now = LocalDateTime.now(KST);
-		int minute = (now.getMinute() / 5) * 5;
-		return now.withMinute(minute).withSecond(0).withNano(0);
+		return now.withMinute(0).withSecond(0).withNano(0);
 	}
 
 	private void runSafely(String collectorName, Runnable task) {

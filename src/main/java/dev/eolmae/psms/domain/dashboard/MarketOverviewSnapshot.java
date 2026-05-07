@@ -48,6 +48,12 @@ public class MarketOverviewSnapshot {
 	private BigDecimal tradingValue;
 
 	@Column(nullable = false)
+	private int upperLimitCount;
+
+	@Column(nullable = false)
+	private int lowerLimitCount;
+
+	@Column(nullable = false)
 	private int advancers;
 
 	@Column(nullable = false)
@@ -72,6 +78,8 @@ public class MarketOverviewSnapshot {
 		entity.changeValue = overview.getChangeValue();
 		entity.changeRate = overview.getChangeRate();
 		entity.tradingValue = overview.getTradingValue();
+		entity.upperLimitCount = overview.getUpperLimitCount();
+		entity.lowerLimitCount = overview.getLowerLimitCount();
 		entity.advancers = overview.getAdvancers();
 		entity.decliners = overview.getDecliners();
 		entity.unchangedCount = overview.getUnchangedCount();

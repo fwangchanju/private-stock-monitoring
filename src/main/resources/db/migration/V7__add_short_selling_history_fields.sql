@@ -1,0 +1,6 @@
+ALTER TABLE short_selling_history
+    ADD COLUMN short_balance_volume BIGINT NOT NULL DEFAULT 0,
+    ADD COLUMN short_avg_price DECIMAL(19,4) NOT NULL DEFAULT 0,
+    ADD COLUMN close_price DECIMAL(19,4) NOT NULL DEFAULT 0,
+    ADD COLUMN price_change DECIMAL(19,4) NOT NULL DEFAULT 0,
+    ADD COLUMN change_rate DECIMAL(9,4) NOT NULL DEFAULT 0;

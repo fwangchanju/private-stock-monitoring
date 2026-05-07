@@ -39,9 +39,17 @@ out/
 ### local gradle home ###
 .gradle-user-home/
 
+### Claude Code ###
+.claude/settings.local.json
+CLAUDE.md
+
 ### env files ###
 .env
 deploy/.env
+infra
 
-### Kiwoom ###
-docs/*.pdf
+### Kiwoom API ###
+docs/키움 REST API 문서.*
+docs/images
+docs/test
+docs/kiwoom

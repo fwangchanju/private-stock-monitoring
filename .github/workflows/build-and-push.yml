@@ -13,7 +13,8 @@ on:
         type: choice
         options:
           - app
-          - nginx
+          - front
+          - renderer
           - all
 
 jobs:
@@ -48,14 +49,25 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build and push nginx image (psms-nginx)
-        if: github.event_name == 'push' || inputs.target == 'nginx' || inputs.target == 'all'
+      - name: Build and push front image (psms-nginx)
+        if: github.event_name == 'push' || inputs.target == 'front' || inputs.target == 'all'
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: deploy/nginx/Dockerfile
+          file: containers/front/Dockerfile
           push: true
           tags: ghcr.io/fwangchanju/psms-nginx:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push renderer image (psms-renderer)
+        if: github.event_name == 'push' || inputs.target == 'renderer' || inputs.target == 'all'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: containers/renderer/Dockerfile
+          push: true
+          tags: ghcr.io/fwangchanju/psms-renderer:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -77,6 +89,8 @@ jobs:
               bash "$DEPLOY_DIR/deploy.sh"
             elif [ "$TARGET" = "app" ]; then
               bash "$DEPLOY_DIR/deploy-app.sh"
-            else
-              bash "$DEPLOY_DIR/deploy-nginx.sh"
+            elif [ "$TARGET" = "front" ]; then
+              bash "$DEPLOY_DIR/deploy-front.sh"
+            elif [ "$TARGET" = "renderer" ]; then
+              bash "$DEPLOY_DIR/deploy-renderer.sh"
             fi

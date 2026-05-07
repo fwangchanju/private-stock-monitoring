@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import dev.eolmae.psms.domain.common.MarketType;
 import dev.eolmae.psms.domain.stock.StockMaster;
 import dev.eolmae.psms.domain.stock.StockMasterRepository;
+import dev.eolmae.psms.exception.EscalateException;
 import dev.eolmae.psms.external.kiwoom.KiwoomApiClient;
 import dev.eolmae.psms.external.kiwoom.KiwoomResponseParser;
 import java.util.HashSet;
@@ -32,8 +33,14 @@ public class StockMasterCollector {
 	public void sync() {
 		Set<String> fetchedCodes = new HashSet<>();
 
-		fetchedCodes.addAll(syncForMarket(MarketType.KOSPI, "0"));
-		fetchedCodes.addAll(syncForMarket(MarketType.KOSDAQ, "10"));
+		try {
+			fetchedCodes.addAll(syncForMarket(MarketType.KOSPI, "0"));
+			fetchedCodes.addAll(syncForMarket(MarketType.KOSDAQ, "10"));
+		} catch (EscalateException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new EscalateException("종목 마스터 동기화 실패 — API 호출 불가", e);
+		}
 
 		// API에서 더 이상 조회되지 않는 종목은 비활성화
 		List<StockMaster> allStocks = stockMasterRepository.findAll();
@@ -49,37 +56,36 @@ public class StockMasterCollector {
 
 	private Set<String> syncForMarket(MarketType marketType, String mrktTp) {
 		Set<String> fetchedCodes = new HashSet<>();
-		try {
-			JsonNode response = kiwoomApiClient.post(
-				API_PATH,
-				TR_ID,
-				Map.of("mrkt_tp", mrktTp)
-			);
 
-			// 응답 래퍼 필드: list
-			JsonNode outputList = response.path("list");
-			for (JsonNode item : outputList) {
-				String stockCode = KiwoomResponseParser.parseString(item, "code");
-				String stockName = KiwoomResponseParser.parseString(item, "name");
+		JsonNode response = kiwoomApiClient.post(
+			API_PATH,
+			TR_ID,
+			Map.of("mrkt_tp", mrktTp)
+		);
 
-				if (stockCode.isEmpty()) {
-					continue;
-				}
+		// 응답 래퍼 필드: list
+		JsonNode outputList = response.path("list");
+		for (JsonNode item : outputList) {
+			String stockCode = KiwoomResponseParser.parseString(item, "code");
+			String rawName = KiwoomResponseParser.parseString(item, "name");
 
-				fetchedCodes.add(stockCode);
-
-				StockMaster existing = stockMasterRepository.findById(stockCode).orElse(null);
-				if (existing == null) {
-					stockMasterRepository.save(StockMaster.create(stockCode, stockName, marketType));
-				} else if (!existing.getStockName().equals(stockName) || !existing.isActive()) {
-					existing.update(stockName, marketType);
-				}
+			if (stockCode.isEmpty()) {
+				continue;
 			}
 
-			log.debug("종목 마스터 시장별 동기화 완료: market={}, count={}", marketType, fetchedCodes.size());
-		} catch (Exception e) {
-			log.error("종목 마스터 수집 실패: market={}", marketType, e);
+			// 키움 API가 종목명에 공백을 포함해 반환하는 경우가 있어 제거
+			String stockName = rawName.replace(" ", "");
+			fetchedCodes.add(stockCode);
+
+			StockMaster existing = stockMasterRepository.findById(stockCode).orElse(null);
+			if (existing == null) {
+				stockMasterRepository.save(StockMaster.create(stockCode, stockName, marketType));
+			} else if (!existing.getStockName().equals(stockName) || !existing.isActive()) {
+				existing.update(stockName, marketType);
+			}
 		}
+
+		log.debug("종목 마스터 시장별 동기화 완료: market={}, count={}", marketType, fetchedCodes.size());
 		return fetchedCodes;
 	}
 }

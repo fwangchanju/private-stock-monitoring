@@ -2,6 +2,9 @@ package dev.eolmae.psms.external.kiwoom;
 
 import dev.eolmae.psms.external.kiwoom.dto.TokenResponse;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,8 +47,10 @@ public class KiwoomTokenManager {
 			.retrieve()
 			.body(TokenResponse.class);
 
-		cachedToken = response.accessToken();
-		tokenExpiry = Instant.now().plusSeconds(response.expiresIn() - 300);
+		cachedToken = response.token();
+		LocalDateTime expiresDt = LocalDateTime.parse(response.expiresAt(),
+			DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+		tokenExpiry = expiresDt.minusMinutes(5).atZone(ZoneId.of("Asia/Seoul")).toInstant();
 		log.info("Kiwoom 토큰 발급 완료. 만료 예정: {}", tokenExpiry);
 		return cachedToken;
 	}

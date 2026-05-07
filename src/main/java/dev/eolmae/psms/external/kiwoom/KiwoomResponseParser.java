@@ -13,6 +13,11 @@ public class KiwoomResponseParser {
 		if (raw.isEmpty() || raw.equals("-")) {
 			return BigDecimal.ZERO;
 		}
+		// 키움 API 일부 필드는 "--180311" 형태로 음수를 표현 (부호 prefix + 숫자)
+		// 앞의 여분 '-' 제거 후 "-180311" 로 변환
+		if (raw.startsWith("--")) {
+			raw = raw.substring(1);
+		}
 		try {
 			return new BigDecimal(raw);
 		} catch (NumberFormatException e) {

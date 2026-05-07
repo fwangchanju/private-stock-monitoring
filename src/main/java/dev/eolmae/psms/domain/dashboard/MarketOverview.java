@@ -48,6 +48,12 @@ public class MarketOverview {
 	private BigDecimal tradingValue;
 
 	@Column(nullable = false)
+	private int upperLimitCount;
+
+	@Column(nullable = false)
+	private int lowerLimitCount;
+
+	@Column(nullable = false)
 	private int advancers;
 
 	@Column(nullable = false)
@@ -68,7 +74,8 @@ public class MarketOverview {
 	public static MarketOverview create(MarketType marketType, LocalDateTime snapshotTime,
 		LocalDateTime lastCollectedAt, String marketStatus,
 		BigDecimal indexValue, BigDecimal changeValue, BigDecimal changeRate,
-		BigDecimal tradingValue, int advancers, int decliners, int unchangedCount) {
+		BigDecimal tradingValue, int upperLimitCount, int lowerLimitCount,
+		int advancers, int decliners, int unchangedCount) {
 		var entity = new MarketOverview();
 		entity.marketType = marketType;
 		entity.snapshotTime = snapshotTime;
@@ -78,6 +85,8 @@ public class MarketOverview {
 		entity.changeValue = changeValue;
 		entity.changeRate = changeRate;
 		entity.tradingValue = tradingValue;
+		entity.upperLimitCount = upperLimitCount;
+		entity.lowerLimitCount = lowerLimitCount;
 		entity.advancers = advancers;
 		entity.decliners = decliners;
 		entity.unchangedCount = unchangedCount;
@@ -89,6 +98,7 @@ public class MarketOverview {
 	public void update(LocalDateTime snapshotTime, LocalDateTime lastCollectedAt,
 		String marketStatus, BigDecimal indexValue, BigDecimal changeValue,
 		BigDecimal changeRate, BigDecimal tradingValue,
+		int upperLimitCount, int lowerLimitCount,
 		int advancers, int decliners, int unchangedCount) {
 		this.snapshotTime = snapshotTime;
 		this.lastCollectedAt = lastCollectedAt;
@@ -97,6 +107,8 @@ public class MarketOverview {
 		this.changeValue = changeValue;
 		this.changeRate = changeRate;
 		this.tradingValue = tradingValue;
+		this.upperLimitCount = upperLimitCount;
+		this.lowerLimitCount = lowerLimitCount;
 		this.advancers = advancers;
 		this.decliners = decliners;
 		this.unchangedCount = unchangedCount;

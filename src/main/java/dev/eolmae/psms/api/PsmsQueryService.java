@@ -6,12 +6,14 @@ import dev.eolmae.psms.api.dto.IntradayInvestorRankingItem;
 import dev.eolmae.psms.api.dto.InvestorTradingSummaryItem;
 import dev.eolmae.psms.api.dto.MarketOverviewItem;
 import dev.eolmae.psms.api.dto.NotificationSettingResponse;
+import dev.eolmae.psms.api.dto.ProgramTradingDailyHistoryItem;
 import dev.eolmae.psms.api.dto.ProgramTradingHistoryItem;
 import dev.eolmae.psms.api.dto.ProgramTradingRankingItem;
 import dev.eolmae.psms.api.dto.ShortSellingHistoryItem;
 import dev.eolmae.psms.api.dto.SnapshotResponse;
 import dev.eolmae.psms.api.dto.StockHistoryResponse;
 import dev.eolmae.psms.api.dto.WatchStockItem;
+import dev.eolmae.psms.domain.common.AmtQtyType;
 import dev.eolmae.psms.domain.common.IntradayRankingType;
 import dev.eolmae.psms.domain.common.InvestorType;
 import dev.eolmae.psms.domain.common.MarketType;
@@ -21,7 +23,9 @@ import dev.eolmae.psms.domain.dashboard.IntradayInvestorRankingSnapshotRepositor
 import dev.eolmae.psms.domain.dashboard.InvestorTradingSummaryRepository;
 import dev.eolmae.psms.domain.dashboard.MarketOverview;
 import dev.eolmae.psms.domain.dashboard.MarketOverviewRepository;
+import dev.eolmae.psms.domain.dashboard.ProgramTradingRankingSnapshot;
 import dev.eolmae.psms.domain.dashboard.ProgramTradingRankingSnapshotRepository;
+import dev.eolmae.psms.domain.history.ProgramTradingDailyHistoryRepository;
 import dev.eolmae.psms.domain.history.ProgramTradingHistoryRepository;
 import dev.eolmae.psms.domain.history.ShortSellingHistoryRepository;
 import dev.eolmae.psms.domain.stock.WatchStockRepository;
@@ -30,6 +34,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Stream;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,6 +52,7 @@ public class PsmsQueryService {
 	private final WatchStockRepository watchStockRepository;
 	private final UserNotificationSettingRepository userNotificationSettingRepository;
 	private final ProgramTradingHistoryRepository programTradingHistoryRepository;
+	private final ProgramTradingDailyHistoryRepository programTradingDailyHistoryRepository;
 	private final ShortSellingHistoryRepository shortSellingHistoryRepository;
 
 	public PsmsQueryService(
@@ -58,6 +64,7 @@ public class PsmsQueryService {
 		WatchStockRepository watchStockRepository,
 		UserNotificationSettingRepository userNotificationSettingRepository,
 		ProgramTradingHistoryRepository programTradingHistoryRepository,
+		ProgramTradingDailyHistoryRepository programTradingDailyHistoryRepository,
 		ShortSellingHistoryRepository shortSellingHistoryRepository
 	) {
 		this.marketOverviewRepository = marketOverviewRepository;
@@ -68,6 +75,7 @@ public class PsmsQueryService {
 		this.watchStockRepository = watchStockRepository;
 		this.userNotificationSettingRepository = userNotificationSettingRepository;
 		this.programTradingHistoryRepository = programTradingHistoryRepository;
+		this.programTradingDailyHistoryRepository = programTradingDailyHistoryRepository;
 		this.shortSellingHistoryRepository = shortSellingHistoryRepository;
 	}
 
@@ -109,13 +117,8 @@ public class PsmsQueryService {
 				item.getNetBuyAmount(), item.getTradedVolume()
 			)).toList();
 
-		// 대시보드 요약: 프로그램 순매수 상위
-		var programItems = programTradingRankingSnapshotRepository
-			.findBySnapshotTimeAndRankingTypeOrderByRankAsc(snapshotTime, ProgramRankingType.NET_BUY)
-			.stream().map(item -> new ProgramTradingRankingItem(
-				item.getRank(), item.getStockCode(), item.getStockName(),
-				item.getProgramBuyAmount(), item.getProgramSellAmount(), item.getProgramNetBuyAmount()
-			)).toList();
+		// 대시보드 요약: 프로그램 순매수 상위 (KOSPI 기준 금액)
+		var programItems = getProgramTradingRankings(MarketType.KOSPI, ProgramRankingType.NET_BUY, AmtQtyType.AMOUNT).items();
 
 		// 대시보드 요약: KOSPI 지수 기여도 상위
 		var indexContributionItems = indexContributionRankingSnapshotRepository
@@ -132,7 +135,8 @@ public class PsmsQueryService {
 			marketOverviews.stream().map(item -> new MarketOverviewItem(
 				item.getMarketType(), item.getMarketStatus(),
 				item.getIndexValue(), item.getChangeValue(), item.getChangeRate(),
-				item.getTradingValue(), item.getAdvancers(), item.getDecliners(), item.getUnchangedCount()
+				item.getTradingValue(), item.getUpperLimitCount(), item.getLowerLimitCount(),
+				item.getAdvancers(), item.getDecliners(), item.getUnchangedCount()
 			)).toList(),
 			investorSummaries.stream().map(item -> new InvestorTradingSummaryItem(
 				item.getMarketType(), item.getInvestorType(),
@@ -167,21 +171,38 @@ public class PsmsQueryService {
 		return new SnapshotResponse<>(snapshotTime, items);
 	}
 
-	public SnapshotResponse<ProgramTradingRankingItem> getProgramTradingRankings(ProgramRankingType rankingType) {
+	public SnapshotResponse<ProgramTradingRankingItem> getProgramTradingRankings(
+		MarketType marketType, ProgramRankingType rankingType, AmtQtyType amtQtyType
+	) {
 		var snapshotTime = programTradingRankingSnapshotRepository.findLatestSnapshotTime()
 			.orElse(null);
 		if (snapshotTime == null) {
 			return new SnapshotResponse<>(null, List.of());
 		}
 
-		var items = programTradingRankingSnapshotRepository
-			.findBySnapshotTimeAndRankingTypeOrderByRankAsc(snapshotTime, rankingType)
-			.stream().map(item -> new ProgramTradingRankingItem(
+		List<ProgramTradingRankingSnapshot> snapshots;
+		if (marketType == null) {
+			// 전체: KOSPI + KOSDAQ 합산 후 netBuyAmount 기준 재정렬
+			var kospi = programTradingRankingSnapshotRepository
+				.findBySnapshotTimeAndMarketTypeAndRankingTypeAndAmtQtyTypeOrderByRankAsc(
+					snapshotTime, MarketType.KOSPI, rankingType, amtQtyType);
+			var kosdaq = programTradingRankingSnapshotRepository
+				.findBySnapshotTimeAndMarketTypeAndRankingTypeAndAmtQtyTypeOrderByRankAsc(
+					snapshotTime, MarketType.KOSDAQ, rankingType, amtQtyType);
+			snapshots = Stream.concat(kospi.stream(), kosdaq.stream())
+				.sorted(Comparator.comparing(ProgramTradingRankingSnapshot::getProgramNetBuyAmount).reversed())
+				.toList();
+		} else {
+			snapshots = programTradingRankingSnapshotRepository
+				.findBySnapshotTimeAndMarketTypeAndRankingTypeAndAmtQtyTypeOrderByRankAsc(
+					snapshotTime, marketType, rankingType, amtQtyType);
+		}
+
+		return new SnapshotResponse<>(snapshotTime, snapshots.stream()
+			.map(item -> new ProgramTradingRankingItem(
 				item.getRank(), item.getStockCode(), item.getStockName(),
 				item.getProgramBuyAmount(), item.getProgramSellAmount(), item.getProgramNetBuyAmount()
-			)).toList();
-
-		return new SnapshotResponse<>(snapshotTime, items);
+			)).toList());
 	}
 
 	public SnapshotResponse<IndexContributionItem> getIndexContribution(MarketType marketType) {
@@ -238,6 +259,21 @@ public class PsmsQueryService {
 		return new StockHistoryResponse<>(stockCode, items);
 	}
 
+	public StockHistoryResponse<ProgramTradingDailyHistoryItem> getProgramTradingDailyHistory(
+		String stockCode, LocalDate from, LocalDate to
+	) {
+		var items = programTradingDailyHistoryRepository
+			.findByStockCodeAndTradeDateBetweenOrderByTradeDateDesc(stockCode, from, to)
+			.stream().map(item -> new ProgramTradingDailyHistoryItem(
+				item.getTradeDate(),
+				item.getProgramBuyAmount(),
+				item.getProgramSellAmount(),
+				item.getProgramNetBuyAmount()
+			)).toList();
+
+		return new StockHistoryResponse<>(stockCode, items);
+	}
+
 	public StockHistoryResponse<ShortSellingHistoryItem> getShortSellingHistory(
 		String stockCode, LocalDate from, LocalDate to
 	) {
@@ -246,8 +282,13 @@ public class PsmsQueryService {
 			.stream().map(item -> new ShortSellingHistoryItem(
 				item.getTradeDate(),
 				item.getShortVolume(),
+				item.getShortBalanceVolume(),
 				item.getShortAmount(),
-				item.getShortRatio()
+				item.getShortAvgPrice(),
+				item.getShortRatio(),
+				item.getClosePrice(),
+				item.getPriceChange(),
+				item.getChangeRate()
 			)).toList();
 
 		return new StockHistoryResponse<>(stockCode, items);
