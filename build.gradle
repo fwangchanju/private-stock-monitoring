@@ -6,7 +6,7 @@ plugins {
 
 group = 'dev.eolmae'
 version = '0.0.1-SNAPSHOT'
-description = 'private-stock-monitoring'
+description = 'market-monitor'
 
 java {
 	toolchain {
