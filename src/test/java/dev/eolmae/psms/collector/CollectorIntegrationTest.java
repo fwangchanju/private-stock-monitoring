@@ -2,7 +2,6 @@ package dev.eolmae.psms.collector;
 
 import dev.eolmae.psms.domain.dashboard.IndexContributionRankingSnapshotRepository;
 import dev.eolmae.psms.exception.EscalateException;
-import dev.eolmae.psms.external.krx.KrxCrawler;
 import dev.eolmae.psms.notification.AlertService;
 import dev.eolmae.psms.domain.dashboard.IntradayInvestorRankingSnapshotRepository;
 import dev.eolmae.psms.domain.dashboard.InvestorTradingSummaryRepository;
@@ -12,8 +11,6 @@ import dev.eolmae.psms.domain.history.ProgramTradingHistoryRepository;
 import dev.eolmae.psms.domain.history.ShortSellingHistoryRepository;
 import dev.eolmae.psms.domain.stock.StockMasterRepository;
 import dev.eolmae.psms.domain.stock.WatchStockRepository;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -38,6 +35,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * 실행 환경:
  *   서버에서 --network backend 옵션으로 실행 (prod MariaDB 접근 필요)
  *   KIWOOM_APP_KEY, KIWOOM_SECRET, DB_APP_PASSWD 환경변수 필요
+ *   KRX_ID, KRX_PW — order7, order8 (KRX 수집기) 실행 시 필요
  *
  * 실행 명령 예시:
  *   ./gradlew test --tests "*.CollectorIntegrationTest" -i
@@ -75,16 +73,15 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 @SpringBootTest
 @ActiveProfiles("prod")
 @TestPropertySource(properties = {
-	"spring.test.database.replace=none",
-	"krx.cookie-file=infra/krx-login-cookie"
+	"spring.test.database.replace=none"
 })
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class CollectorIntegrationTest {
 
 	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
-	@Value("${krx.cookie-file:}")
-	private String krxCookieFile;
+	@Value("${krx.login-id:}")
+	private String krxLoginId;
 
 	@Autowired StockMasterCollector stockMasterCollector;
 	@Autowired MarketOverviewCollector marketOverviewCollector;
@@ -104,7 +101,6 @@ class CollectorIntegrationTest {
 	@Autowired ShortSellingHistoryRepository shortSellingHistoryRepository;
 	@Autowired IndexContributionRankingSnapshotRepository indexContributionRankingSnapshotRepository;
 	@Autowired WatchStockRepository watchStockRepository;
-	@Autowired KrxCrawler krxCrawler;
 	@Autowired AlertService alertService;
 
 	/** 스케줄러와 동일한 방식으로 snapshotTime 산출 (현재 시각을 1시간 단위로 내림) */
@@ -220,8 +216,7 @@ class CollectorIntegrationTest {
 		//   → 텔레그램 봇 /add <종목코드> 로 등록하거나, order1 실행 후 DB에 직접 insert
 		// 주의: KRX 공매도 데이터는 당일 18:30 이후 확정
 		//       장중 실행 시 전일 데이터만 있거나 0건일 수 있음
-		assumeTrue(!krxCookieFile.isBlank() && Files.exists(Paths.get(krxCookieFile)),
-			"KRX 쿠키 파일 없음 — KRX 테스트 스킵");
+		assumeTrue(!krxLoginId.isBlank(), "KRX 로그인 정보 미설정 — KRX_ID/KRX_PW 환경변수 확인 후 재실행");
 		long watchStockCount = watchStockRepository.count();
 		assumeTrue(watchStockCount > 0,
 			"관심종목 없음 — 텔레그램 봇 /add <종목코드> 로 종목 추가 후 재실행");
@@ -241,8 +236,7 @@ class CollectorIntegrationTest {
 		//   → order2(marketOverview_수집) 먼저 실행 후 진행 권장
 		// 검증: KOSPI/KOSDAQ 각 상위 50종목 스냅샷 저장 확인
 		//       장 외 시간에는 당일 데이터 없을 수 있으나 예외 없이 완료되어야 함
-		assumeTrue(!krxCookieFile.isBlank() && Files.exists(Paths.get(krxCookieFile)),
-			"KRX 쿠키 파일 없음 — KRX 테스트 스킵");
+		assumeTrue(!krxLoginId.isBlank(), "KRX 로그인 정보 미설정 — KRX_ID/KRX_PW 환경변수 확인 후 재실행");
 		long marketOverviewCount = marketOverviewRepository.count();
 		assumeTrue(marketOverviewCount > 0,
 			"MarketOverview 데이터 없음 — order2(marketOverview_수집) 먼저 실행");
@@ -252,18 +246,6 @@ class CollectorIntegrationTest {
 
 		long count = indexContributionRankingSnapshotRepository.count();
 		log.info("[8] IndexContributionRanking 수집 완료 — snapshotTime={}, 총 누적 스냅샷={}건", snapshotTime, count);
-	}
-
-	@Test
-	@Order(9)
-	void order9_krxSession_연장() {
-		// 선행 조건: KRX 쿠키 파일 존재
-		// 검증: extendSession 호출 시 예외 없이 완료되는지 확인
-		assumeTrue(!krxCookieFile.isBlank() && Files.exists(Paths.get(krxCookieFile)),
-			"KRX 쿠키 파일 없음 — KRX 테스트 스킵");
-
-		krxCrawler.extendSession();
-		log.info("[9] KRX 세션 연장 완료");
 	}
 
 	@Test
