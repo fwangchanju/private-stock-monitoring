@@ -69,9 +69,24 @@
 
 - ✅ GitHub Actions CI/CD 파이프라인 완성 (빌드 → GHCR push → SSH 자동 배포)
 
+## 프로젝트 이름 변경 작업 (mini PC 이전 시 함께 처리)
+
+코드 레벨은 완료. 아래는 실제 서버 인프라와 묶인 항목들.
+
+- [ ] GitHub 레포 이름 변경: `private-stock-monitoring` → `market-monitor-backend`
+- [ ] GitHub Actions 워크플로우: 이미지 이름 `psms*` → `market-monitor*` 수정
+- [ ] GHCR 이미지: `psms` / `psms-front` / `psms-renderer` → `market-monitor` / `market-monitor-front` / `market-monitor-renderer`
+- [ ] 서버 컨테이너 재배포: `psmsapp` → `market-monitor-app`, `psms-renderer` → `market-monitor-renderer`
+- [ ] `deploy/docker-compose.yml`, `infra/docker-compose.yml` 컨테이너 이름 수정
+- [ ] `application-prod.properties`: `psms-renderer`, `psms-mariadb` 호스트명 수정
+- [ ] 환경변수 파일 이름 변경: `~/env/private-stock-monitoring.env` → `~/env/market-monitor.env`
+- [ ] DB 계정 및 스키마: `psmsdb` / `psmsapp` / `psmsadm` → PostgreSQL 이전 시 새 이름으로 생성
+
+---
+
 ## TODO List
 
-1. ❌ GHCR 이미지 패키지명 변경: `psms` → `psms-backend`, `psms-nginx` → `psms-frontend` (mini PC 이전 시 함께 처리)
+1. ❌ GHCR 이미지 패키지명 변경: `psms` → `market-monitor` (위 프로젝트 이름 변경 작업으로 대체)
 2. ✅ API 수집 및 적재 비즈니스 재설계 (7개 수집기 + KRX 크롤러 구현 완료)
 3. ✅ `deploy/nginx/` → `containers/front/` 구조 개편 완료
 4. ✅ HTTPS 적용 완료 (Duck DNS + Certbot, eolmae.duckdns.org)
@@ -99,9 +114,10 @@
 
 ### 프로젝트 구조 변경 (확정)
 
-- **레포지토리 이름 변경**: `private-stock-monitoring` → 추후 결정
-- **프론트엔드 분리**: 별도 레포지토리로 분리
-- **nginx 설정 재구성**: 멀티 앱 라우팅 대응
+- **레포지토리 이름 변경**: `private-stock-monitoring` → `market-monitor-backend` / `market-monitor-frontend`
+- **Spring context-path**: `/market-monitor` (API URL prefix)
+- **프론트엔드 분리**: 별도 레포지토리(`market-monitor-frontend`)로 분리
+- **nginx 설정 재구성**: 멀티 앱 라우팅 대응 (`/market-monitor` → 이 서비스)
 
 ### 기능 방향 추가 (중장기)
 
