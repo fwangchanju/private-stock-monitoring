@@ -34,7 +34,9 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	// test
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-	testRuntimeOnly 'com.h2database:h2' // TODO del
+	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+	testImplementation 'org.testcontainers:junit-jupiter'
+	testImplementation 'org.testcontainers:postgresql'
 
 	// lombok
 	compileOnly 'org.projectlombok:lombok'
@@ -42,9 +44,9 @@ dependencies {
 	testCompileOnly 'org.projectlombok:lombok'
 	testAnnotationProcessor 'org.projectlombok:lombok'
 
-	// mariadb // TODO postgresql
-	runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
-	implementation 'org.flywaydb:flyway-mysql'
+	// postgresql
+	runtimeOnly 'org.postgresql:postgresql'
+	implementation 'org.flywaydb:flyway-database-postgresql'
 
 	// ok http, krx data market login
 	implementation 'com.squareup.okhttp3:okhttp:4.12.0'
