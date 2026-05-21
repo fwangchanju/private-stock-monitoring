@@ -8,7 +8,7 @@ COPY src src
 RUN chmod +x gradlew && ./gradlew bootJar -x test --no-daemon -Dorg.gradle.jvmargs="-Xmx512m -Xms128m"
 
 FROM eclipse-temurin:21-jre-jammy
-LABEL org.opencontainers.image.source=https://github.com/fwangchanju/private-stock-monitoring
+LABEL org.opencontainers.image.source=https://github.com/fwangchanju/market-monitor-backend
 WORKDIR /app
 COPY --from=builder /build/build/libs/*.jar app.jar
-ENTRYPOINT ["java", "-Xmx512m", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]

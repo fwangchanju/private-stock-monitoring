@@ -45,7 +45,7 @@ jobs:
           context: .
           file: Dockerfile
           push: true
-          tags: ghcr.io/fwangchanju/psms:latest
+          tags: ghcr.io/fwangchanju/market-monitor:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -67,7 +67,7 @@ jobs:
           context: .
           file: containers/renderer/Dockerfile
           push: true
-          tags: ghcr.io/fwangchanju/psms-renderer:latest
+          tags: ghcr.io/fwangchanju/market-monitor-renderer:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

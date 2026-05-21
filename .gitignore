@@ -44,9 +44,8 @@ out/
 CLAUDE.md
 
 ### env files ###
-.env
-deploy/.env
-infra
+infra/.env
+
 
 ### Kiwoom API ###
 docs/키움 REST API 문서.*

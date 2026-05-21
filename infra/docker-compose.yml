@@ -1,0 +1,55 @@
+services:
+  market-monitor-postgres:
+    image: postgres:17-alpine
+    container_name: market-monitor-postgres
+    restart: always
+    environment:
+      - POSTGRES_DB=market_monitor_db
+      - POSTGRES_USER=market_monitor
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - market-monitor-postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - proxy
+
+  market-monitor:
+    image: ghcr.io/fwangchanju/market-monitor:latest
+    container_name: market-monitor
+    restart: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - DB_PASSWORD=${DB_PASSWORD}
+      - KIWOOM_APP_KEY=${KIWOOM_APP_KEY}
+      - KIWOOM_SECRET=${KIWOOM_SECRET}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - DEVELOPER_CHAT_ID=${DEVELOPER_CHAT_ID}
+      - KRX_ID=${KRX_ID}
+      - KRX_PW=${KRX_PW}
+    expose:
+      - "8080"
+    networks:
+      - proxy
+
+  market-monitor-renderer:
+    image: ghcr.io/fwangchanju/market-monitor-renderer:latest
+    container_name: market-monitor-renderer
+    restart: always
+    environment:
+      - DASHBOARD_URL=http://nginx
+      - DASHBOARD_USER=${DASHBOARD_USER}
+      - DASHBOARD_PASS=${DASHBOARD_PASS}
+    expose:
+      - "3000"
+    networks:
+      - proxy
+    shm_size: '128m'
+
+volumes:
+  market-monitor-postgres-data:
+
+networks:
+  proxy:
+    external: true
