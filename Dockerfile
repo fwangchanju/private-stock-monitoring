@@ -2,10 +2,10 @@ FROM eclipse-temurin:21-jdk-jammy AS builder
 WORKDIR /build
 COPY gradlew .
 COPY gradle gradle
-COPY build.gradle .
-COPY settings.gradle .
+COPY build.gradle settings.gradle gradle.properties ./
+RUN chmod +x gradlew && ./gradlew dependencies --no-daemon -Dorg.gradle.jvmargs="-Xmx512m -Xms128m"
 COPY src src
-RUN chmod +x gradlew && ./gradlew bootJar -x test --no-daemon -Dorg.gradle.jvmargs="-Xmx512m -Xms128m"
+RUN ./gradlew bootJar -x test --no-daemon -Dorg.gradle.jvmargs="-Xmx512m -Xms128m"
 
 FROM eclipse-temurin:21-jre-jammy
 LABEL org.opencontainers.image.source=https://github.com/fwangchanju/market-monitor-backend
