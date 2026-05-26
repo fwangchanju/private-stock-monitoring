@@ -54,7 +54,7 @@ public class ProgramTradingRankingCollector {
 			return;
 		}
 
-		var request = new Ka90003Request(rankingType.code(), amtQtyType.code(), Market.valueOf(marketType.name()).mrktCd, StexType.KRX_NXT.code());
+		var request = new Ka90003Request(rankingType.code(), amtQtyType.code(), Market.valueOf(marketType.name()).mrktTp, StexType.KRX_NXT.code());
 		Ka90003Response response = kiwoomApiClient.post(request, Ka90003Response.class);
 
 		List<Ka90003Response.RankingItem> items = response.items() != null ? response.items() : List.of();
@@ -83,8 +83,8 @@ public class ProgramTradingRankingCollector {
 	private enum Market {
 		KOSPI("P00101"),
 		KOSDAQ("P10102");
-		final String mrktCd;  // ka90003 mrkt_tp
-		Market(String mrktCd) { this.mrktCd = mrktCd; }
+		final String mrktTp;
+		Market(String mrktTp) { this.mrktTp = mrktTp; }
 	}
 
 	private static String stripAlSuffix(String stkCd) {
