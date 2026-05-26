@@ -48,7 +48,7 @@ public class InvestorTradingSummaryCollector {
 
 	private void collectForMarket(MarketType marketType, LocalDateTime snapshotTime) {
 		Market m = Market.valueOf(marketType.name());
-		var request = new Ka10051Request(m.mrktTp, AMT_QTY_TP_AMOUNT, snapshotTime.format(DATE_FMT), StexType.KRX.code());
+		var request = new Ka10051Request(m.mrktTp, AMT_QTY_TP_AMOUNT, snapshotTime.format(DATE_FMT), StexType.KRX_NXT.code());
 		var response = kiwoomApiClient.post(request, Ka10051Response.class);
 
 		if (response.indsNetprps() == null || response.indsNetprps().isEmpty()) {
@@ -56,8 +56,9 @@ public class InvestorTradingSummaryCollector {
 			return;
 		}
 
+		String indsCd = Market.valueOf(marketType.name()).indsCd;
 		Ka10051Response.IndsNetprps compositeItem = response.indsNetprps().stream()
-			.filter(item -> Market.valueOf(marketType.name()).indsCd.equals(item.indsCd()))
+			.filter(item -> item.indsCd() != null && item.indsCd().startsWith(indsCd))
 			.findFirst()
 			.orElse(response.indsNetprps().get(0));
 
