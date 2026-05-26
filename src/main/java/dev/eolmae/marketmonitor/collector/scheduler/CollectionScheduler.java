@@ -37,7 +37,7 @@ public class CollectionScheduler {
 	/**
 	 * 장중 시장 데이터 수집: 평일 09:00~15:00, 1시간 간격
 	 */
-	@Scheduled(cron = "0 0 9-15 * * MON-FRI", zone = "Asia/Seoul")
+	// @Scheduled(cron ="0 0 9-15 * * MON-FRI", zone = "Asia/Seoul")
 	public void collectMarketData() {
 		LocalDateTime snapshotTime = resolveSnapshotTime();
 		log.info("장중 시장 데이터 수집 시작: snapshotTime={}", snapshotTime);
@@ -55,7 +55,7 @@ public class CollectionScheduler {
 	/**
 	 * 프로그램매매 일별 이력 수집: 평일 16:00 (장 마감 후 1회)
 	 */
-	@Scheduled(cron = "0 0 16 * * MON-FRI", zone = "Asia/Seoul")
+	// @Scheduled(cron ="0 0 16 * * MON-FRI", zone = "Asia/Seoul")
 	public void collectProgramTradingDaily() {
 		LocalDate tradeDate = LocalDate.now(KST);
 		log.info("프로그램매매 일별 이력 수집 시작: tradeDate={}", tradeDate);
@@ -66,7 +66,7 @@ public class CollectionScheduler {
 	/**
 	 * 공매도 데이터 수집: 평일 19:00 (당일 자료 18:30 이후 제공)
 	 */
-	@Scheduled(cron = "0 0 19 * * MON-FRI", zone = "Asia/Seoul")
+	// @Scheduled(cron ="0 0 19 * * MON-FRI", zone = "Asia/Seoul")
 	public void collectShortSelling() {
 		LocalDate tradeDate = LocalDate.now(KST);
 		log.info("공매도 데이터 수집 시작: tradeDate={}", tradeDate);
@@ -79,7 +79,7 @@ public class CollectionScheduler {
 	/**
 	 * 종목 마스터 동기화: 평일 07:00 (장 시작 전)
 	 */
-	@Scheduled(cron = "0 0 7 * * MON-FRI", zone = "Asia/Seoul")
+	// @Scheduled(cron ="0 0 7 * * MON-FRI", zone = "Asia/Seoul")
 	public void syncStockMaster() {
 		log.info("종목 마스터 동기화 시작");
 

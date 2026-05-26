@@ -23,7 +23,7 @@ public class TelegramPollingService {
 
     private long offset = 0;
 
-    @Scheduled(fixedDelay = 3000)
+    // @Scheduled(fixedDelay = 3000)
     public void pollUpdates() {
         try {
             String url = TELEGRAM_API_BASE

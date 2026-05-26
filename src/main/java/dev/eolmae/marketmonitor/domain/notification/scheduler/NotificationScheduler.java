@@ -22,7 +22,7 @@ public class NotificationScheduler {
 	/**
 	 * 매분 실행: 알림 활성화된 사용자의 설정 시각과 현재 시각 비교 후 발송
 	 */
-	@Scheduled(cron = "0 * * * * *")
+	// @Scheduled(cron = "0 * * * * *")
 	public void checkAndNotify() {
 		List<UserNotificationSetting> settings = settingRepository.findByReminderEnabledTrue();
 		if (settings.isEmpty()) {
