@@ -1,5 +1,6 @@
 package dev.eolmae.marketmonitor.external.kiwoom.client;
 
+import dev.eolmae.marketmonitor.exception.KiwoomApiException;
 import dev.eolmae.marketmonitor.external.kiwoom.config.KiwoomProperties;
 import dev.eolmae.marketmonitor.external.kiwoom.dto.TokenResponse;
 import java.time.Instant;
@@ -19,6 +20,7 @@ import org.springframework.web.client.RestClient;
 public class KiwoomTokenManager {
 
 	private static final String TOKEN_URL = "https://api.kiwoom.com/oauth2/token";
+	private static final int SUCCESS_CODE = 0;
 
 	private final KiwoomProperties properties;
 	private final RestClient restClient = RestClient.create();
@@ -41,12 +43,17 @@ public class KiwoomTokenManager {
 			"secretkey", properties.secret()
 		);
 
-		var response = restClient.post()
+		TokenResponse response = restClient.post()
 			.uri(TOKEN_URL)
 			.contentType(MediaType.APPLICATION_JSON)
 			.body(body)
 			.retrieve()
 			.body(TokenResponse.class);
+
+		if (response == null || response.returnCode() != SUCCESS_CODE) {
+			String msg = response != null ? response.returnMsg() : "응답 없음";
+			throw new KiwoomApiException("Kiwoom 토큰 발급 실패: " + msg);
+		}
 
 		cachedToken = response.token();
 		LocalDateTime expiresDt = LocalDateTime.parse(response.expiresAt(),
