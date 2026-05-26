@@ -46,10 +46,5 @@ CLAUDE.md
 ### env files ###
 infra/.env
 
-
-### Kiwoom API ###
-docs/키움 REST API 문서.*
-docs/images
-docs/test
-docs/kiwoom
-docs/think
+### Internal docs ###
+docs/
