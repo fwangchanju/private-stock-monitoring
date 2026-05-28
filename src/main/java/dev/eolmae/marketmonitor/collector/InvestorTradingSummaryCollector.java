@@ -5,8 +5,6 @@ import dev.eolmae.marketmonitor.common.enums.InvestorType;
 import dev.eolmae.marketmonitor.common.enums.MarketType;
 import dev.eolmae.marketmonitor.common.enums.StexType;
 import dev.eolmae.marketmonitor.common.util.NumberParser;
-import dev.eolmae.marketmonitor.domain.dashboard.InvestorTradingSummary;
-import dev.eolmae.marketmonitor.domain.dashboard.repository.InvestorTradingSummaryRepository;
 import dev.eolmae.marketmonitor.domain.dashboard.InvestorTradingSummarySnapshot;
 import dev.eolmae.marketmonitor.domain.dashboard.repository.InvestorTradingSummarySnapshotRepository;
 import dev.eolmae.marketmonitor.external.kiwoom.client.KiwoomApiClient;
@@ -32,12 +30,11 @@ public class InvestorTradingSummaryCollector {
 	private static final String AMT_QTY_TP_AMOUNT = "0"; // ka10051 amt_qty_tp: 0=금액
 
 	private final KiwoomApiClient kiwoomApiClient;
-	private final InvestorTradingSummaryRepository investorTradingSummaryRepository;
 	private final InvestorTradingSummarySnapshotRepository investorTradingSummarySnapshotRepository;
 
 	@Transactional
 	public void collect(LocalDateTime snapshotTime) {
-		for (MarketType marketType : MarketType.values()) {
+		for (MarketType marketType : MarketType.storableValues()) {
 			try {
 				collectForMarket(marketType, snapshotTime);
 			} catch (Exception e) {
@@ -60,24 +57,25 @@ public class InvestorTradingSummaryCollector {
 		Ka10051Response.IndsNetprps compositeItem = response.indsNetprps().stream()
 			.filter(item -> item.indsCd() != null && item.indsCd().startsWith(indsCd))
 			.findFirst()
-			.orElse(response.indsNetprps().get(0));
+			.orElseThrow(() -> new IllegalStateException(
+				"투자자별매매종합 종합지수 행 없음: market=" + marketType + ", indsCd=" + indsCd));
 
 		LocalDateTime now = LocalDateTime.now();
 
 		// ka10051은 순매수만 제공하므로 매수/매도는 ZERO로 저장
-		saveInvestorSummary(marketType, InvestorType.PERSONAL, NumberParser.parseBigDecimal(compositeItem.indNetprps()), snapshotTime, now);
-		saveInvestorSummary(marketType, InvestorType.FOREIGNER, NumberParser.parseBigDecimal(compositeItem.frgnrNetprps()), snapshotTime, now);
-		saveInvestorSummary(marketType, InvestorType.INSTITUTION, NumberParser.parseBigDecimal(compositeItem.orgnNetprps()), snapshotTime, now);
-		saveInvestorSummary(marketType, InvestorType.FINANCIAL_INVESTMENT, NumberParser.parseBigDecimal(compositeItem.scNetprps()), snapshotTime, now);
-		saveInvestorSummary(marketType, InvestorType.TRUST, NumberParser.parseBigDecimal(compositeItem.invtrtNetprps()), snapshotTime, now);
-		saveInvestorSummary(marketType, InvestorType.PENSION_FUND, NumberParser.parseBigDecimal(compositeItem.endwNetprps()), snapshotTime, now);
-		saveInvestorSummary(marketType, InvestorType.PRIVATE_FUND, NumberParser.parseBigDecimal(compositeItem.samoFundNetprps()), snapshotTime, now);
-		saveInvestorSummary(marketType, InvestorType.INSURANCE, NumberParser.parseBigDecimal(compositeItem.insrncNetprps()), snapshotTime, now);
-		saveInvestorSummary(marketType, InvestorType.BANK, NumberParser.parseBigDecimal(compositeItem.bankNetprps()), snapshotTime, now);
-		saveInvestorSummary(marketType, InvestorType.OTHER_CORP, NumberParser.parseBigDecimal(compositeItem.etcCorpNetprps()), snapshotTime, now);
-		saveInvestorSummary(marketType, InvestorType.GOVERNMENT, NumberParser.parseBigDecimal(compositeItem.natnNetprps()), snapshotTime, now);
-		saveInvestorSummary(marketType, InvestorType.OTHER_FINANCE, NumberParser.parseBigDecimal(compositeItem.jnsinkmNetprps()), snapshotTime, now);
-		saveInvestorSummary(marketType, InvestorType.FOREIGN_COMPANY, NumberParser.parseBigDecimal(compositeItem.nativeTrmtFrgnrNetprps()), snapshotTime, now);
+		saveSnapshot(marketType, InvestorType.PERSONAL, NumberParser.parseBigDecimal(compositeItem.indNetprps()), snapshotTime, now);
+		saveSnapshot(marketType, InvestorType.FOREIGNER, NumberParser.parseBigDecimal(compositeItem.frgnrNetprps()), snapshotTime, now);
+		saveSnapshot(marketType, InvestorType.INSTITUTION, NumberParser.parseBigDecimal(compositeItem.orgnNetprps()), snapshotTime, now);
+		saveSnapshot(marketType, InvestorType.FINANCIAL_INVESTMENT, NumberParser.parseBigDecimal(compositeItem.scNetprps()), snapshotTime, now);
+		saveSnapshot(marketType, InvestorType.TRUST, NumberParser.parseBigDecimal(compositeItem.invtrtNetprps()), snapshotTime, now);
+		saveSnapshot(marketType, InvestorType.PENSION_FUND, NumberParser.parseBigDecimal(compositeItem.endwNetprps()), snapshotTime, now);
+		saveSnapshot(marketType, InvestorType.PRIVATE_FUND, NumberParser.parseBigDecimal(compositeItem.samoFundNetprps()), snapshotTime, now);
+		saveSnapshot(marketType, InvestorType.INSURANCE, NumberParser.parseBigDecimal(compositeItem.insrncNetprps()), snapshotTime, now);
+		saveSnapshot(marketType, InvestorType.BANK, NumberParser.parseBigDecimal(compositeItem.bankNetprps()), snapshotTime, now);
+		saveSnapshot(marketType, InvestorType.OTHER_CORP, NumberParser.parseBigDecimal(compositeItem.etcCorpNetprps()), snapshotTime, now);
+		saveSnapshot(marketType, InvestorType.GOVERNMENT, NumberParser.parseBigDecimal(compositeItem.natnNetprps()), snapshotTime, now);
+		saveSnapshot(marketType, InvestorType.OTHER_FINANCE, NumberParser.parseBigDecimal(compositeItem.jnsinkmNetprps()), snapshotTime, now);
+		saveSnapshot(marketType, InvestorType.FOREIGN_COMPANY, NumberParser.parseBigDecimal(compositeItem.nativeTrmtFrgnrNetprps()), snapshotTime, now);
 
 		log.debug("투자자별매매종합 수집 완료: market={}", marketType);
 	}
@@ -90,26 +88,17 @@ public class InvestorTradingSummaryCollector {
 		Market(String mrktTp, String indsCd) { this.mrktTp = mrktTp; this.indsCd = indsCd; }
 	}
 
-	private void saveInvestorSummary(MarketType marketType, InvestorType investorType,
+	private void saveSnapshot(MarketType marketType, InvestorType investorType,
 		BigDecimal netBuyAmount, LocalDateTime snapshotTime, LocalDateTime now) {
 
-		BigDecimal zero = BigDecimal.ZERO;
-
-		InvestorTradingSummary summary = investorTradingSummaryRepository
-			.findByMarketTypeAndInvestorType(marketType, investorType)
-			.map(existing -> {
-				existing.update(snapshotTime, now, zero, zero, netBuyAmount);
-				return existing;
-			})
-			.orElseGet(() -> InvestorTradingSummary.create(
-				marketType, investorType, snapshotTime, now, zero, zero, netBuyAmount));
-
-		investorTradingSummaryRepository.save(summary);
-
 		if (investorTradingSummarySnapshotRepository
-			.findByMarketTypeAndInvestorTypeAndSnapshotTime(marketType, investorType, snapshotTime)
+			.findByMarketTypeAndInvestorTypeAndAmtQtyTypeAndSnapshotTime(
+				marketType, investorType, AmtQtyType.AMOUNT, snapshotTime)
 			.isEmpty()) {
-			investorTradingSummarySnapshotRepository.save(InvestorTradingSummarySnapshot.from(summary));
+			investorTradingSummarySnapshotRepository.save(
+				InvestorTradingSummarySnapshot.create(
+					marketType, investorType, AmtQtyType.AMOUNT, snapshotTime, now,
+					BigDecimal.ZERO, BigDecimal.ZERO, netBuyAmount));
 		}
 	}
 }

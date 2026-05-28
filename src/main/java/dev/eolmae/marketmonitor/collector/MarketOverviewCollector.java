@@ -2,8 +2,6 @@ package dev.eolmae.marketmonitor.collector;
 
 import dev.eolmae.marketmonitor.common.enums.MarketType;
 import dev.eolmae.marketmonitor.common.util.NumberParser;
-import dev.eolmae.marketmonitor.domain.dashboard.MarketOverview;
-import dev.eolmae.marketmonitor.domain.dashboard.repository.MarketOverviewRepository;
 import dev.eolmae.marketmonitor.domain.dashboard.MarketOverviewSnapshot;
 import dev.eolmae.marketmonitor.domain.dashboard.repository.MarketOverviewSnapshotRepository;
 import dev.eolmae.marketmonitor.external.kiwoom.client.KiwoomApiClient;
@@ -22,12 +20,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class MarketOverviewCollector {
 
 	private final KiwoomApiClient kiwoomApiClient;
-	private final MarketOverviewRepository marketOverviewRepository;
 	private final MarketOverviewSnapshotRepository marketOverviewSnapshotRepository;
 
 	@Transactional
 	public void collect(LocalDateTime snapshotTime) {
-		for (MarketType marketType : MarketType.values()) {
+		for (MarketType marketType : MarketType.storableValues()) {
 			try {
 				collectForMarket(marketType, snapshotTime);
 			} catch (Exception e) {
@@ -54,21 +51,10 @@ public class MarketOverviewCollector {
 		int decliners = NumberParser.parseInt(response.fall());
 		int unchangedCount = NumberParser.parseInt(response.stdns());
 
-		MarketOverview overview = marketOverviewRepository.findByMarketType(marketType)
-			.map(existing -> {
-				existing.update(snapshotTime, now, marketStatus, indexValue, changeValue,
-					changeRate, tradingValue, upperLimitCount, lowerLimitCount,
-					advancers, decliners, unchangedCount);
-				return existing;
-			})
-			.orElseGet(() -> MarketOverview.create(marketType, snapshotTime, now, marketStatus,
-				indexValue, changeValue, changeRate, tradingValue,
-				upperLimitCount, lowerLimitCount, advancers, decliners, unchangedCount));
-
-		marketOverviewRepository.save(overview);
-
 		if (marketOverviewSnapshotRepository.findByMarketTypeAndSnapshotTime(marketType, snapshotTime).isEmpty()) {
-			marketOverviewSnapshotRepository.save(MarketOverviewSnapshot.from(overview));
+			marketOverviewSnapshotRepository.save(MarketOverviewSnapshot.create(
+				marketType, snapshotTime, now, marketStatus, indexValue, changeValue, changeRate,
+				tradingValue, upperLimitCount, lowerLimitCount, advancers, decliners, unchangedCount));
 		}
 
 		log.debug("시장종합 수집 완료: market={}, index={}", marketType, indexValue);

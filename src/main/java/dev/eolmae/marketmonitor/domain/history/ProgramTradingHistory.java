@@ -6,13 +6,20 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.Getter;
 
 @Getter
 @Entity
-@Table(name = "program_trading_history")
+@Table(
+	name = "program_trading_history",
+	uniqueConstraints = @UniqueConstraint(
+		name = "uk_program_trading_history",
+		columnNames = {"stock_code", "snapshot_time"}
+	)
+)
 public class ProgramTradingHistory {
 
 	@Id

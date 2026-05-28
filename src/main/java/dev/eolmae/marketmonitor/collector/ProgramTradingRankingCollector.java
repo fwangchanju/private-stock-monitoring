@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-// ka90003: 프로그램순매수상위50요청 — 코스피/코스닥 × 순매수/순매도 × 금액/수량 = 8회 호출/사이클
+// ka90003: 프로그램순매수상위50요청 — 코스피/코스닥 × 순매수/순매도 × 금액만 = 4회 호출/사이클
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -29,15 +29,12 @@ public class ProgramTradingRankingCollector {
 
 	@Transactional
 	public void collect(LocalDateTime snapshotTime) {
-		for (MarketType marketType : MarketType.values()) {
+		for (MarketType marketType : MarketType.storableValues()) {
 			for (ProgramRankingType rankingType : ProgramRankingType.values()) {
-				for (AmtQtyType amtQtyType : AmtQtyType.values()) {
-					try {
-						collectForCombination(marketType, rankingType, amtQtyType, snapshotTime);
-					} catch (Exception e) {
-						log.error("프로그램매매 랭킹 수집 실패: market={}, ranking={}, amtQty={}",
-							marketType, rankingType, amtQtyType, e);
-					}
+				try {
+					collectForCombination(marketType, rankingType, AmtQtyType.AMOUNT, snapshotTime);
+				} catch (Exception e) {
+					log.error("프로그램매매 랭킹 수집 실패: market={}, ranking={}", marketType, rankingType, e);
 				}
 			}
 		}

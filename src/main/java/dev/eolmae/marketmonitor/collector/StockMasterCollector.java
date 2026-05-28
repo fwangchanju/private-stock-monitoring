@@ -30,7 +30,7 @@ public class StockMasterCollector {
 		Set<String> fetchedCodes = new HashSet<>();
 
 		try {
-			for (MarketType marketType : MarketType.values()) {
+			for (MarketType marketType : MarketType.storableValues()) {
 				fetchedCodes.addAll(syncForMarket(marketType));
 			}
 		} catch (EscalateException e) {

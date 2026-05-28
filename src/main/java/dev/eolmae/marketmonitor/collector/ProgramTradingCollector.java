@@ -16,7 +16,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +25,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 // ka90008: 종목시간별프로그램매매추이 / ka90013: 종목일별프로그램매매추이
-// 각 종목별 KRX + NXT 2회 호출 후 합산
+// ka90008: 각 틱은 해당 마켓(KRX/NXT)의 당일 누적합 → KRX 최신 틱 + NXT 최신 틱 합산값만 저장
+// ka90013: 각 틱은 해당 날짜의 일별 합계 → KRX[date] + NXT[date] 합산 저장
+// 순매수금액은 prm_netprps_amt 미사용 (-- 파싱 오류) → buy - sell 직접 계산
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -63,8 +65,13 @@ public class ProgramTradingCollector {
 	}
 
 	private void collectIntradayForStock(String stockCode, LocalDateTime snapshotTime) {
+		if (historyRepository.existsByStockCodeAndSnapshotTime(stockCode, snapshotTime)) {
+			return;
+		}
+
 		String dateStr = snapshotTime.format(DATE_FMT);
 
+		// ka90008: 각 틱은 당일 누적합 → KRX·NXT 각각 최신 틱(리스트 마지막)만 사용
 		var krxRequest = new Ka90008Request(stockCode, StexType.KRX.code(), dateStr);
 		Ka90008Response krxResponse = kiwoomApiClient.post(krxRequest, Ka90008Response.class);
 
@@ -74,35 +81,36 @@ public class ProgramTradingCollector {
 		List<Ka90008Response.TradeTick> krxTicks = krxResponse.ticks() != null ? krxResponse.ticks() : List.of();
 		List<Ka90008Response.TradeTick> nxtTicks = nxtResponse.ticks() != null ? nxtResponse.ticks() : List.of();
 
-		// tm 기준 분 단위 버킷(예: 143433 → 143400)으로 KRX+NXT 합산
-		Map<String, BigDecimal[]> merged = new LinkedHashMap<>();
-
-		for (Ka90008Response.TradeTick tick : krxTicks) {
-			accumulateTick(merged, tick.tm(), tick.prmBuyAmt(), tick.prmSellAmt(), tick.prmNetprpsAmt());
-		}
-		for (Ka90008Response.TradeTick tick : nxtTicks) {
-			accumulateTick(merged, tick.tm(), tick.prmBuyAmt(), tick.prmSellAmt(), tick.prmNetprpsAmt());
-		}
-
-		if (merged.isEmpty()) {
+		if (krxTicks.isEmpty() && nxtTicks.isEmpty()) {
 			log.debug("프로그램매매 장중이력 없음: stockCode={}", stockCode);
 			return;
 		}
 
-		for (Map.Entry<String, BigDecimal[]> entry : merged.entrySet()) {
-			LocalDateTime recordTime = parseSnapshotTime(dateStr, entry.getKey());
-			if (recordTime == null) continue;
-			if (historyRepository.existsByStockCodeAndSnapshotTime(stockCode, recordTime)) continue;
-			BigDecimal[] amounts = entry.getValue();
-			historyRepository.save(ProgramTradingHistory.create(
-				stockCode, recordTime, amounts[0], amounts[1], amounts[2]
-			));
+		Ka90008Response.TradeTick krxLatest = krxTicks.isEmpty() ? null : krxTicks.get(krxTicks.size() - 1);
+		Ka90008Response.TradeTick nxtLatest = nxtTicks.isEmpty() ? null : nxtTicks.get(nxtTicks.size() - 1);
+
+		BigDecimal buyAmt = BigDecimal.ZERO;
+		BigDecimal sellAmt = BigDecimal.ZERO;
+
+		if (krxLatest != null) {
+			buyAmt = buyAmt.add(NumberParser.parseBigDecimal(krxLatest.prmBuyAmt()));
+			sellAmt = sellAmt.add(NumberParser.parseBigDecimal(krxLatest.prmSellAmt()));
+		}
+		if (nxtLatest != null) {
+			buyAmt = buyAmt.add(NumberParser.parseBigDecimal(nxtLatest.prmBuyAmt()));
+			sellAmt = sellAmt.add(NumberParser.parseBigDecimal(nxtLatest.prmSellAmt()));
 		}
 
-		log.debug("프로그램매매 장중이력 수집 완료: stockCode={}, buckets={}", stockCode, merged.size());
+		BigDecimal netBuyAmt = buyAmt.subtract(sellAmt);
+
+		historyRepository.save(ProgramTradingHistory.create(stockCode, snapshotTime, buyAmt, sellAmt, netBuyAmt));
+
+		log.debug("프로그램매매 장중이력 수집 완료: stockCode={}, buy={}, sell={}, net={}",
+			stockCode, buyAmt, sellAmt, netBuyAmt);
 	}
 
 	private void collectDailyForStock(String stockCode, LocalDate tradeDate) {
+		// ka90013: 각 틱은 해당 날짜의 일별 집계 → KRX[date] + NXT[date] 합산
 		var krxRequest = new Ka90013Request(stockCode, StexType.KRX.code());
 		Ka90013Response krxResponse = kiwoomApiClient.post(krxRequest, Ka90013Response.class);
 
@@ -112,70 +120,39 @@ public class ProgramTradingCollector {
 		List<Ka90013Response.DailyTick> krxTicks = krxResponse.ticks() != null ? krxResponse.ticks() : List.of();
 		List<Ka90013Response.DailyTick> nxtTicks = nxtResponse.ticks() != null ? nxtResponse.ticks() : List.of();
 
-		Map<String, BigDecimal[]> merged = new LinkedHashMap<>();
+		// date → [buy, sell] 합산 (net = buy - sell)
+		Map<String, BigDecimal[]> merged = new HashMap<>();
 
 		for (Ka90013Response.DailyTick tick : krxTicks) {
 			String dt = tick.dt() != null ? tick.dt().trim() : null;
 			if (dt == null || dt.isBlank()) continue;
-			accumulateDaily(merged, dt, tick.prmBuyAmt(), tick.prmSellAmt(), tick.prmNetprpsAmt());
+			accumulateDaily(merged, dt, tick.prmBuyAmt(), tick.prmSellAmt());
 		}
 		for (Ka90013Response.DailyTick tick : nxtTicks) {
 			String dt = tick.dt() != null ? tick.dt().trim() : null;
 			if (dt == null || dt.isBlank()) continue;
-			accumulateDaily(merged, dt, tick.prmBuyAmt(), tick.prmSellAmt(), tick.prmNetprpsAmt());
+			accumulateDaily(merged, dt, tick.prmBuyAmt(), tick.prmSellAmt());
 		}
 
 		for (Map.Entry<String, BigDecimal[]> entry : merged.entrySet()) {
 			LocalDate date = parseDate(entry.getKey());
 			if (date == null) continue;
 			if (dailyHistoryRepository.existsByStockCodeAndTradeDate(stockCode, date)) continue;
-			BigDecimal[] amounts = entry.getValue();
+			BigDecimal buy = entry.getValue()[0];
+			BigDecimal sell = entry.getValue()[1];
 			dailyHistoryRepository.save(ProgramTradingDailyHistory.create(
-				stockCode, date, amounts[0], amounts[1], amounts[2]
+				stockCode, date, buy, sell, buy.subtract(sell)
 			));
 		}
 
 		log.debug("프로그램매매 일별이력 수집 완료: stockCode={}", stockCode);
 	}
 
-	private static void accumulateTick(Map<String, BigDecimal[]> merged, String tm,
-		String buyAmt, String sellAmt, String netAmt) {
-		String bucket = toMinuteBucket(tm);
-		if (bucket == null) return;
-		var amounts = merged.computeIfAbsent(bucket, k -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO});
-		amounts[0] = amounts[0].add(NumberParser.parseBigDecimal(buyAmt));
-		amounts[1] = amounts[1].add(NumberParser.parseBigDecimal(sellAmt));
-		amounts[2] = amounts[2].add(NumberParser.parseBigDecimal(netAmt));
-	}
-
 	private static void accumulateDaily(Map<String, BigDecimal[]> merged, String dt,
-		String buyAmt, String sellAmt, String netAmt) {
-		var amounts = merged.computeIfAbsent(dt, k -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO});
+		String buyAmt, String sellAmt) {
+		var amounts = merged.computeIfAbsent(dt, k -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO});
 		amounts[0] = amounts[0].add(NumberParser.parseBigDecimal(buyAmt));
 		amounts[1] = amounts[1].add(NumberParser.parseBigDecimal(sellAmt));
-		amounts[2] = amounts[2].add(NumberParser.parseBigDecimal(netAmt));
-	}
-
-	// 분 단위 버킷 변환: "143433" → "143400"
-	private static String toMinuteBucket(String tm) {
-		if (tm == null || tm.trim().length() != 6) return null;
-		return tm.trim().substring(0, 4) + "00";
-	}
-
-	// "20240101" + "143400" → LocalDateTime(2024-01-01T14:34:00)
-	private static LocalDateTime parseSnapshotTime(String dateStr, String tmBucket) {
-		try {
-			return LocalDateTime.of(
-				Integer.parseInt(dateStr.substring(0, 4)),
-				Integer.parseInt(dateStr.substring(4, 6)),
-				Integer.parseInt(dateStr.substring(6, 8)),
-				Integer.parseInt(tmBucket.substring(0, 2)),
-				Integer.parseInt(tmBucket.substring(2, 4)),
-				0
-			);
-		} catch (Exception e) {
-			return null;
-		}
 	}
 
 	private static LocalDate parseDate(String dt) {

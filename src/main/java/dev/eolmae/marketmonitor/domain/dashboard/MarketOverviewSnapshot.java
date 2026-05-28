@@ -9,13 +9,20 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.Getter;
 
 @Getter
 @Entity
-@Table(name = "market_overview_snapshot")
+@Table(
+	name = "market_overview_snapshot",
+	uniqueConstraints = @UniqueConstraint(
+		name = "uk_market_overview_snapshot",
+		columnNames = {"market_type", "snapshot_time"}
+	)
+)
 public class MarketOverviewSnapshot {
 
 	@Id
@@ -68,21 +75,25 @@ public class MarketOverviewSnapshot {
 	protected MarketOverviewSnapshot() {
 	}
 
-	public static MarketOverviewSnapshot from(MarketOverview overview) {
+	public static MarketOverviewSnapshot create(
+		MarketType marketType, LocalDateTime snapshotTime, LocalDateTime lastCollectedAt,
+		String marketStatus, BigDecimal indexValue, BigDecimal changeValue, BigDecimal changeRate,
+		BigDecimal tradingValue, int upperLimitCount, int lowerLimitCount,
+		int advancers, int decliners, int unchangedCount) {
 		var entity = new MarketOverviewSnapshot();
-		entity.marketType = overview.getMarketType();
-		entity.snapshotTime = overview.getSnapshotTime();
-		entity.lastCollectedAt = overview.getLastCollectedAt();
-		entity.marketStatus = overview.getMarketStatus();
-		entity.indexValue = overview.getIndexValue();
-		entity.changeValue = overview.getChangeValue();
-		entity.changeRate = overview.getChangeRate();
-		entity.tradingValue = overview.getTradingValue();
-		entity.upperLimitCount = overview.getUpperLimitCount();
-		entity.lowerLimitCount = overview.getLowerLimitCount();
-		entity.advancers = overview.getAdvancers();
-		entity.decliners = overview.getDecliners();
-		entity.unchangedCount = overview.getUnchangedCount();
+		entity.marketType = marketType;
+		entity.snapshotTime = snapshotTime;
+		entity.lastCollectedAt = lastCollectedAt;
+		entity.marketStatus = marketStatus;
+		entity.indexValue = indexValue;
+		entity.changeValue = changeValue;
+		entity.changeRate = changeRate;
+		entity.tradingValue = tradingValue;
+		entity.upperLimitCount = upperLimitCount;
+		entity.lowerLimitCount = lowerLimitCount;
+		entity.advancers = advancers;
+		entity.decliners = decliners;
+		entity.unchangedCount = unchangedCount;
 		entity.createdAt = LocalDateTime.now();
 		return entity;
 	}

@@ -5,8 +5,8 @@ import dev.eolmae.marketmonitor.common.enums.MarketType;
 import dev.eolmae.marketmonitor.common.util.NumberParser;
 import dev.eolmae.marketmonitor.domain.dashboard.IndexContributionRankingSnapshot;
 import dev.eolmae.marketmonitor.domain.dashboard.repository.IndexContributionRankingSnapshotRepository;
-import dev.eolmae.marketmonitor.domain.dashboard.MarketOverview;
-import dev.eolmae.marketmonitor.domain.dashboard.repository.MarketOverviewRepository;
+import dev.eolmae.marketmonitor.domain.dashboard.MarketOverviewSnapshot;
+import dev.eolmae.marketmonitor.domain.dashboard.repository.MarketOverviewSnapshotRepository;
 import dev.eolmae.marketmonitor.exception.EscalateException;
 import dev.eolmae.marketmonitor.external.krx.crawler.KrxCrawler;
 import java.math.BigDecimal;
@@ -31,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   전일종가 = 현재가 - 전일대비등락액
  *   종목기여도 = (현재가 - 전일종가) × 상장주식수 / 전일_전체_시가총액 × 전일_지수값
  *
- * 전일 지수값: MarketOverview.indexValue - MarketOverview.changeValue 로 역산.
+ * 전일 지수값: MarketOverviewSnapshot(최신) indexValue - changeValue 로 역산.
  */
 @Slf4j
 @Component
@@ -45,11 +45,11 @@ public class IndexContributionRankingCollector {
 
     private final KrxCrawler krxCrawler;
     private final IndexContributionRankingSnapshotRepository snapshotRepository;
-    private final MarketOverviewRepository marketOverviewRepository;
+    private final MarketOverviewSnapshotRepository marketOverviewSnapshotRepository;
 
     @Transactional
     public void collect(LocalDateTime snapshotTime) {
-        for (MarketType marketType : MarketType.values()) {
+        for (MarketType marketType : MarketType.storableValues()) {
             collectForMarket(marketType, snapshotTime);
         }
     }
@@ -150,15 +150,16 @@ public class IndexContributionRankingCollector {
     }
 
     /**
-     * MarketOverview에서 전일 지수값을 역산.
+     * MarketOverviewSnapshot 최신 스냅샷에서 전일 지수값을 역산.
      * 전일 지수값 = 현재 지수(indexValue) - 등락액(changeValue)
      */
     private BigDecimal resolvePrevIndexValue(MarketType marketType) {
-        MarketOverview overview = marketOverviewRepository.findByMarketType(marketType)
+        MarketOverviewSnapshot snapshot = marketOverviewSnapshotRepository
+            .findTopByMarketTypeOrderBySnapshotTimeDesc(marketType)
             .orElseThrow(() -> new EscalateException(
-                "MarketOverview 데이터 없음 — 지수기여도 기여도 연산 불가: market=" + marketType
+                "MarketOverviewSnapshot 데이터 없음 — 지수기여도 연산 불가: market=" + marketType
             ));
-        return overview.getIndexValue().subtract(overview.getChangeValue());
+        return snapshot.getIndexValue().subtract(snapshot.getChangeValue());
     }
 
     /**

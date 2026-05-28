@@ -4,8 +4,8 @@ import dev.eolmae.marketmonitor.domain.dashboard.repository.IndexContributionRan
 import dev.eolmae.marketmonitor.exception.EscalateException;
 import dev.eolmae.marketmonitor.domain.notification.service.AlertService;
 import dev.eolmae.marketmonitor.domain.dashboard.repository.IntradayInvestorRankingSnapshotRepository;
-import dev.eolmae.marketmonitor.domain.dashboard.repository.InvestorTradingSummaryRepository;
-import dev.eolmae.marketmonitor.domain.dashboard.repository.MarketOverviewRepository;
+import dev.eolmae.marketmonitor.domain.dashboard.repository.InvestorTradingSummarySnapshotRepository;
+import dev.eolmae.marketmonitor.domain.dashboard.repository.MarketOverviewSnapshotRepository;
 import dev.eolmae.marketmonitor.domain.dashboard.repository.ProgramTradingRankingSnapshotRepository;
 import dev.eolmae.marketmonitor.domain.history.repository.ProgramTradingHistoryRepository;
 import dev.eolmae.marketmonitor.domain.history.repository.ShortSellingHistoryRepository;
@@ -33,7 +33,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * 수집기 전체 통합 테스트 — 외부 API 호출 → DB 저장까지 검증
  *
  * 실행 환경:
- *   서버에서 --network backend 옵션으로 실행 (prod MariaDB 접근 필요)
+ *   서버에서 --network backend 옵션으로 실행 (prod PostgreSQL 접근 필요)
  *   KIWOOM_APP_KEY, KIWOOM_SECRET, DB_APP_PASSWD 환경변수 필요
  *   KRX_ID, KRX_PW — order7, order8 (KRX 수집기) 실행 시 필요
  *
@@ -61,7 +61,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  *              → KRX 공매도 데이터는 18:30 이후 확정. 장중 실행 시 당일 데이터 없을 수 있음.
  *
  *   Order 8. indexContributionRanking_수집
- *              → MarketOverview 데이터 필요. 없으면 테스트 스킵됨.
+ *              → MarketOverviewSnapshot 데이터 필요. 없으면 테스트 스킵됨.
  *              → order2 먼저 실행 권장.
  *
  * 참고:
@@ -73,7 +73,8 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 @SpringBootTest
 @ActiveProfiles("prod")
 @TestPropertySource(properties = {
-	"spring.test.database.replace=none"
+	"spring.test.database.replace=none",
+	"spring.datasource.url=jdbc:postgresql://localhost:5433/market_monitor_db"
 })
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class CollectorIntegrationTest {
@@ -93,8 +94,8 @@ class CollectorIntegrationTest {
 	@Autowired IndexContributionRankingCollector indexContributionRankingCollector;
 
 	@Autowired StockMasterRepository stockMasterRepository;
-	@Autowired MarketOverviewRepository marketOverviewRepository;
-	@Autowired InvestorTradingSummaryRepository investorTradingSummaryRepository;
+	@Autowired MarketOverviewSnapshotRepository marketOverviewSnapshotRepository;
+	@Autowired InvestorTradingSummarySnapshotRepository investorTradingSummarySnapshotRepository;
 	@Autowired IntradayInvestorRankingSnapshotRepository intradayInvestorRankingSnapshotRepository;
 	@Autowired ProgramTradingRankingSnapshotRepository programTradingRankingSnapshotRepository;
 	@Autowired ProgramTradingHistoryRepository programTradingHistoryRepository;
@@ -134,17 +135,17 @@ class CollectorIntegrationTest {
 	@Order(2)
 	void order2_marketOverview_수집() {
 		// 선행 조건: 없음
-		// 검증: KOSPI/KOSDAQ 각 1건씩 총 2건 upsert 확인
+		// 검증: KOSPI/KOSDAQ 각 1건씩 총 2건 스냅샷 저장 확인
 		//       지수값(indexValue)이 0보다 큰지 확인 (장 외 시간에도 전일 종가로 응답)
 		LocalDateTime snapshotTime = snapshotTime();
 		marketOverviewCollector.collect(snapshotTime);
 
-		var result = marketOverviewRepository.findAll();
+		var result = marketOverviewSnapshotRepository.findBySnapshotTimeOrderByMarketTypeAsc(snapshotTime);
 		log.info("[2] MarketOverview 수집 완료 — snapshotTime={}, 저장 건수={}", snapshotTime, result.size());
 		result.forEach(o -> log.info("    {} | indexValue={} | changeValue={}",
 			o.getMarketType(), o.getIndexValue(), o.getChangeValue()));
 
-		assertThat(result).as("MarketOverview가 2건(KOSPI+KOSDAQ)이어야 함").hasSize(2);
+		assertThat(result).as("MarketOverviewSnapshot가 2건(KOSPI+KOSDAQ)이어야 함").hasSize(2);
 		assertThat(result).allSatisfy(o ->
 			assertThat(o.getIndexValue()).as("지수값이 0이어서는 안 됨").isNotZero()
 		);
@@ -154,14 +155,14 @@ class CollectorIntegrationTest {
 	@Order(3)
 	void order3_investorTradingSummary_수집() {
 		// 선행 조건: 없음
-		// 검증: 시장(2) × 투자자(13) = 최대 26건 upsert 확인
+		// 검증: 시장(2) × 투자자(13) = 최대 26건 스냅샷 저장 확인
 		//       장 외 시간에도 이전 데이터로 채워지므로 항상 0보다 커야 함
 		LocalDateTime snapshotTime = snapshotTime();
 		investorTradingSummaryCollector.collect(snapshotTime);
 
-		long count = investorTradingSummaryRepository.count();
+		long count = investorTradingSummarySnapshotRepository.count();
 		log.info("[3] InvestorTradingSummary 수집 완료 — snapshotTime={}, 저장 건수={}", snapshotTime, count);
-		assertThat(count).as("투자자별 매매종합 데이터가 없음").isPositive();
+		assertThat(count).as("투자자별 매매종합 스냅샷 데이터가 없음").isPositive();
 	}
 
 	@Test
@@ -232,14 +233,14 @@ class CollectorIntegrationTest {
 	@Test
 	@Order(8)
 	void order8_indexContributionRanking_수집() {
-		// 선행 조건: MarketOverview 데이터 필요 (전일 지수값 역산에 사용)
+		// 선행 조건: MarketOverviewSnapshot 데이터 필요 (전일 지수값 역산에 사용)
 		//   → order2(marketOverview_수집) 먼저 실행 후 진행 권장
 		// 검증: KOSPI/KOSDAQ 각 상위 50종목 스냅샷 저장 확인
 		//       장 외 시간에는 당일 데이터 없을 수 있으나 예외 없이 완료되어야 함
 		assumeTrue(!krxLoginId.isBlank(), "KRX 로그인 정보 미설정 — KRX_ID/KRX_PW 환경변수 확인 후 재실행");
-		long marketOverviewCount = marketOverviewRepository.count();
-		assumeTrue(marketOverviewCount > 0,
-			"MarketOverview 데이터 없음 — order2(marketOverview_수집) 먼저 실행");
+		long snapshotCount = marketOverviewSnapshotRepository.count();
+		assumeTrue(snapshotCount > 0,
+			"MarketOverviewSnapshot 데이터 없음 — order2(marketOverview_수집) 먼저 실행");
 
 		LocalDateTime snapshotTime = lastTradingDay().atTime(snapshotTime().toLocalTime());
 		indexContributionRankingCollector.collect(snapshotTime);
