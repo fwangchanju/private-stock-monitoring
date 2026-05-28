@@ -3,6 +3,7 @@ package dev.eolmae.marketmonitor.api.controller;
 import dev.eolmae.marketmonitor.api.dto.DashboardResponse;
 import dev.eolmae.marketmonitor.api.dto.IndexContributionItem;
 import dev.eolmae.marketmonitor.api.dto.IntradayInvestorRankingItem;
+import dev.eolmae.marketmonitor.api.dto.IntradayInvestorTopItem;
 import dev.eolmae.marketmonitor.api.dto.NotificationSettingResponse;
 import dev.eolmae.marketmonitor.api.dto.ProgramTradingDailyHistoryItem;
 import dev.eolmae.marketmonitor.api.dto.ProgramTradingHistoryItem;
@@ -10,10 +11,11 @@ import dev.eolmae.marketmonitor.api.dto.ProgramTradingRankingItem;
 import dev.eolmae.marketmonitor.api.dto.ShortSellingHistoryItem;
 import dev.eolmae.marketmonitor.api.dto.SnapshotResponse;
 import dev.eolmae.marketmonitor.api.dto.StockHistoryResponse;
+import dev.eolmae.marketmonitor.api.dto.StockMasterItem;
 import dev.eolmae.marketmonitor.api.dto.WatchStockItem;
 import dev.eolmae.marketmonitor.common.enums.AmtQtyType;
+import dev.eolmae.marketmonitor.common.enums.IntradayInvestorType;
 import dev.eolmae.marketmonitor.common.enums.IntradayRankingType;
-import dev.eolmae.marketmonitor.common.enums.InvestorType;
 import dev.eolmae.marketmonitor.common.enums.MarketType;
 import dev.eolmae.marketmonitor.common.enums.ProgramRankingType;
 import dev.eolmae.marketmonitor.api.service.DashboardQueryService;
@@ -52,12 +54,27 @@ public class DashboardController {
 	//     return new SendDashboardResponse(svc.sendDashboard());
 	// }
 
-	// ── 장중 투자자별 매매 상위 상세 ─────────────────────────────────────────
+	// ── 장중 투자자별 매매 상위 ────────────────────────────────────────────
 
+	/**
+	 * 장중 투자자별 매매 상위 top 10.
+	 * market=ALL: KOSPI+KOSDAQ 합산, investor=FOREIGN_TOTAL: 외국인+외국계 합산.
+	 * ranking=NET_SELL: netBuyAmount 절댓값 변환 후 반환.
+	 */
+	@GetMapping("/intraday-top")
+	public SnapshotResponse<IntradayInvestorTopItem> getIntradayTop(
+		@RequestParam MarketType market,
+		@RequestParam IntradayInvestorType investor,
+		@RequestParam IntradayRankingType ranking
+	) {
+		return queryService.getIntradayTop(market, investor, ranking);
+	}
+
+	/** 상세 랭킹 (기존 호환용) */
 	@GetMapping("/intraday-rankings")
 	public SnapshotResponse<IntradayInvestorRankingItem> getIntradayRankings(
 		@RequestParam MarketType market,
-		@RequestParam InvestorType investor,
+		@RequestParam IntradayInvestorType investor,
 		@RequestParam IntradayRankingType ranking
 	) {
 		return queryService.getIntradayRankings(market, investor, ranking);
@@ -82,6 +99,14 @@ public class DashboardController {
 		@RequestParam MarketType market
 	) {
 		return queryService.getIndexContribution(market);
+	}
+
+	// ── 종목 마스터 ───────────────────────────────────────────────────────
+
+	/** 활성 종목 전체 반환 — 관심종목 등록 화면 진입 시 1회 호출, 프론트 캐시 후 자동완성 */
+	@GetMapping("/stocks")
+	public List<StockMasterItem> getActiveStocks() {
+		return queryService.getActiveStocks();
 	}
 
 	// ── 관심종목 ─────────────────────────────────────────────────────────

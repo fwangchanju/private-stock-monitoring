@@ -1,8 +1,8 @@
 package dev.eolmae.marketmonitor.domain.dashboard.repository;
 import dev.eolmae.marketmonitor.domain.dashboard.*;
 
+import dev.eolmae.marketmonitor.common.enums.IntradayInvestorType;
 import dev.eolmae.marketmonitor.common.enums.IntradayRankingType;
-import dev.eolmae.marketmonitor.common.enums.InvestorType;
 import dev.eolmae.marketmonitor.common.enums.MarketType;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -12,13 +12,10 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface IntradayInvestorRankingSnapshotRepository extends JpaRepository<IntradayInvestorRankingSnapshot, Long> {
 
-	boolean existsBySnapshotTimeAndMarketTypeAndInvestorTypeAndRankingType(
-		LocalDateTime snapshotTime, MarketType marketType, InvestorType investorType, IntradayRankingType rankingType);
-
 	List<IntradayInvestorRankingSnapshot> findBySnapshotTimeAndMarketTypeAndInvestorTypeAndRankingTypeOrderByRankAsc(
 		LocalDateTime snapshotTime,
 		MarketType marketType,
-		InvestorType investorType,
+		IntradayInvestorType investorType,
 		IntradayRankingType rankingType
 	);
 

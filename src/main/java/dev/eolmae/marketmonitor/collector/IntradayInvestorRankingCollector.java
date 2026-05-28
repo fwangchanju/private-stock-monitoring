@@ -1,8 +1,8 @@
 package dev.eolmae.marketmonitor.collector;
 
 import dev.eolmae.marketmonitor.common.enums.AmtQtyType;
+import dev.eolmae.marketmonitor.common.enums.IntradayInvestorType;
 import dev.eolmae.marketmonitor.common.enums.IntradayRankingType;
-import dev.eolmae.marketmonitor.common.enums.InvestorType;
 import dev.eolmae.marketmonitor.common.enums.MarketType;
 import dev.eolmae.marketmonitor.common.util.NumberParser;
 import dev.eolmae.marketmonitor.domain.dashboard.IntradayInvestorRankingSnapshot;
@@ -23,39 +23,45 @@ import org.springframework.transaction.annotation.Transactional;
 public class IntradayInvestorRankingCollector {
 
 	// ka10065: 장중투자자별매매상위요청 (순위정보 카테고리)
+	// amt_qty_tp=1 (금액 기준) 고정, 5개 투자자 유형만 수집
 
 	private final KiwoomApiClient kiwoomApiClient;
 	private final IntradayInvestorRankingSnapshotRepository repository;
 
 	@Transactional
 	public void collect(LocalDateTime snapshotTime) {
-		for (MarketType marketType : MarketType.values()) {
-			for (Investor investor : Investor.values()) {
+		for (MarketType marketType : MarketType.storableValues()) {
+			for (IntradayInvestorType investorType : IntradayInvestorType.storableValues()) {
 				for (IntradayRankingType rankingType : IntradayRankingType.values()) {
 					try {
-						collectForCombination(marketType, investor, rankingType, snapshotTime);
+						collectForCombination(marketType, investorType, rankingType, snapshotTime);
 					} catch (Exception e) {
 						log.error("장중투자자랭킹 수집 실패: market={}, investor={}, ranking={}",
-							marketType, investor, rankingType, e);
+							marketType, investorType, rankingType, e);
 					}
 				}
 			}
 		}
 	}
 
-	private void collectForCombination(MarketType marketType, Investor investor,
+	private void collectForCombination(MarketType marketType, IntradayInvestorType investorType,
 		IntradayRankingType rankingType, LocalDateTime snapshotTime) {
 
 		List<IntradayInvestorRankingSnapshot> existing = repository
 			.findBySnapshotTimeAndMarketTypeAndInvestorTypeAndRankingTypeOrderByRankAsc(
-				snapshotTime, marketType, investor.domain, rankingType);
+				snapshotTime, marketType, investorType, rankingType);
 		if (!existing.isEmpty()) {
 			log.debug("장중투자자랭킹 이미 존재, 스킵: market={}, investor={}, ranking={}, snapshotTime={}",
-				marketType, investor, rankingType, snapshotTime);
+				marketType, investorType, rankingType, snapshotTime);
 			return;
 		}
 
-		var request = new Ka10065Request(rankingType.code(), Market.valueOf(marketType.name()).mrktTp, investor.code, AmtQtyType.AMOUNT.code());
+		var request = new Ka10065Request(
+			rankingType.code(),
+			Market.valueOf(marketType.name()).mrktTp,
+			investorType.apiCode(),
+			AmtQtyType.AMOUNT.code()
+		);
 		var response = kiwoomApiClient.post(request, Ka10065Response.class);
 
 		if (response.items() == null) {
@@ -65,16 +71,17 @@ public class IntradayInvestorRankingCollector {
 		int rank = 1;
 		for (Ka10065Response.RankingItem item : response.items()) {
 			repository.save(IntradayInvestorRankingSnapshot.create(
-				marketType, investor.domain, rankingType,
+				marketType, investorType, rankingType, AmtQtyType.AMOUNT,
 				rank++, item.stkCd(), item.stkNm(),
 				NumberParser.parseBigDecimal(item.netslmt()),
+				NumberParser.parseLong(item.selQty()),
 				NumberParser.parseLong(item.buyQty()),
 				snapshotTime
 			));
 		}
 
 		log.debug("장중투자자랭킹 수집 완료: market={}, investor={}, ranking={}, count={}",
-			marketType, investor, rankingType, rank - 1);
+			marketType, investorType, rankingType, rank - 1);
 	}
 
 	private enum Market {
@@ -82,23 +89,5 @@ public class IntradayInvestorRankingCollector {
 		KOSDAQ("101");
 		final String mrktTp;  // ka10065 mrkt_tp
 		Market(String mrktTp) { this.mrktTp = mrktTp; }
-	}
-
-	private enum Investor {
-		FOREIGNER(InvestorType.FOREIGNER, "9000"),
-		INSTITUTION(InvestorType.INSTITUTION, "9999"),
-		FINANCIAL_INVESTMENT(InvestorType.FINANCIAL_INVESTMENT, "1000"),
-		TRUST(InvestorType.TRUST, "3000"),
-		PENSION_FUND(InvestorType.PENSION_FUND, "6000"),
-		INSURANCE(InvestorType.INSURANCE, "2000"),
-		BANK(InvestorType.BANK, "4000"),
-		OTHER_FINANCE(InvestorType.OTHER_FINANCE, "5000"),
-		GOVERNMENT(InvestorType.GOVERNMENT, "7000"),
-		OTHER_CORP(InvestorType.OTHER_CORP, "7100"),
-		FOREIGN_COMPANY(InvestorType.FOREIGN_COMPANY, "9100");
-
-		final InvestorType domain;
-		final String code;  // ka10065 trde_ori_tp
-		Investor(InvestorType domain, String code) { this.domain = domain; this.code = code; }
 	}
 }
