@@ -38,7 +38,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push app image (psms)
+      - name: Build and push app image
         if: github.event_name == 'push' || inputs.target == 'app' || inputs.target == 'all'
         uses: docker/build-push-action@v6
         with:
@@ -49,18 +49,18 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build and push front image (psms-nginx)
+      - name: Build and push front image
         if: github.event_name == 'push' || inputs.target == 'front' || inputs.target == 'all'
         uses: docker/build-push-action@v6
         with:
           context: .
           file: containers/front/Dockerfile
           push: true
-          tags: ghcr.io/fwangchanju/psms-nginx:latest
+          tags: ghcr.io/fwangchanju/market-monitor-nginx:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build and push renderer image (psms-renderer)
+      - name: Build and push renderer image
         if: github.event_name == 'push' || inputs.target == 'renderer' || inputs.target == 'all'
         uses: docker/build-push-action@v6
         with:
