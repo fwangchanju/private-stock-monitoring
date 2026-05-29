@@ -68,12 +68,12 @@ public class CollectionScheduler {
 	 */
 	// @Scheduled(cron ="0 0 19 * * MON-FRI", zone = "Asia/Seoul")
 	public void collectShortSelling() {
-		LocalDate tradeDate = LocalDate.now(KST);
-		log.info("공매도 데이터 수집 시작: tradeDate={}", tradeDate);
+		LocalDateTime snapshotTime = LocalDateTime.now(KST).withMinute(0).withSecond(0).withNano(0);
+		log.info("공매도 데이터 수집 시작: snapshotTime={}", snapshotTime);
 
-		runSafely("공매도", () -> shortSellingCollector.collect(tradeDate));
+		runSafely("공매도", () -> shortSellingCollector.collect(snapshotTime));
 
-		log.info("공매도 데이터 수집 완료: tradeDate={}", tradeDate);
+		log.info("공매도 데이터 수집 완료: snapshotTime={}", snapshotTime);
 	}
 
 	/**

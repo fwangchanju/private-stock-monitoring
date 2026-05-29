@@ -8,7 +8,8 @@ import dev.eolmae.marketmonitor.domain.dashboard.repository.InvestorTradingSumma
 import dev.eolmae.marketmonitor.domain.dashboard.repository.MarketOverviewSnapshotRepository;
 import dev.eolmae.marketmonitor.domain.dashboard.repository.ProgramTradingRankingSnapshotRepository;
 import dev.eolmae.marketmonitor.domain.history.repository.ProgramTradingHistoryRepository;
-import dev.eolmae.marketmonitor.domain.history.repository.ShortSellingHistoryRepository;
+import dev.eolmae.marketmonitor.domain.history.repository.ShortSellingDailyHistoryRepository;
+import dev.eolmae.marketmonitor.domain.history.repository.ShortSellingSnapshotRepository;
 import dev.eolmae.marketmonitor.domain.stock.repository.StockMasterRepository;
 import dev.eolmae.marketmonitor.domain.stock.repository.WatchStockRepository;
 import java.time.DayOfWeek;
@@ -99,7 +100,8 @@ class CollectorIntegrationTest {
 	@Autowired IntradayInvestorRankingSnapshotRepository intradayInvestorRankingSnapshotRepository;
 	@Autowired ProgramTradingRankingSnapshotRepository programTradingRankingSnapshotRepository;
 	@Autowired ProgramTradingHistoryRepository programTradingHistoryRepository;
-	@Autowired ShortSellingHistoryRepository shortSellingHistoryRepository;
+	@Autowired ShortSellingDailyHistoryRepository shortSellingDailyHistoryRepository;
+	@Autowired ShortSellingSnapshotRepository shortSellingSnapshotRepository;
 	@Autowired IndexContributionRankingSnapshotRepository indexContributionRankingSnapshotRepository;
 	@Autowired WatchStockRepository watchStockRepository;
 	@Autowired AlertService alertService;
@@ -215,19 +217,18 @@ class CollectorIntegrationTest {
 	void order7_shortSelling_수집() {
 		// 선행 조건: WatchStock에 종목이 1개 이상 등록되어 있어야 함
 		//   → 텔레그램 봇 /add <종목코드> 로 등록하거나, order1 실행 후 DB에 직접 insert
-		// 주의: KRX 공매도 데이터는 당일 18:30 이후 확정
-		//       장중 실행 시 전일 데이터만 있거나 0건일 수 있음
-		assumeTrue(!krxLoginId.isBlank(), "KRX 로그인 정보 미설정 — KRX_ID/KRX_PW 환경변수 확인 후 재실행");
+		// ka10014 기반, KRX 로그인 불필요
 		long watchStockCount = watchStockRepository.count();
 		assumeTrue(watchStockCount > 0,
 			"관심종목 없음 — 텔레그램 봇 /add <종목코드> 로 종목 추가 후 재실행");
 
-		LocalDate tradeDate = lastTradingDay();
-		shortSellingCollector.collect(tradeDate);
+		LocalDateTime snapshotTime = snapshotTime();
+		shortSellingCollector.collect(snapshotTime);
 
-		long count = shortSellingHistoryRepository.count();
-		log.info("[7] ShortSelling 수집 완료 — tradeDate={}, 관심종목={}개, 저장 건수={}",
-			tradeDate, watchStockCount, count);
+		long dailyCount = shortSellingDailyHistoryRepository.count();
+		long snapshotCount = shortSellingSnapshotRepository.count();
+		log.info("[7] ShortSelling 수집 완료 — snapshotTime={}, 관심종목={}개, 일별={}건, 스냅샷={}건",
+			snapshotTime, watchStockCount, dailyCount, snapshotCount);
 	}
 
 	@Test

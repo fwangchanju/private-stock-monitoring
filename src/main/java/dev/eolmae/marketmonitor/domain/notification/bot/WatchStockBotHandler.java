@@ -1,5 +1,6 @@
 package dev.eolmae.marketmonitor.domain.notification.bot;
 
+import dev.eolmae.marketmonitor.collector.WatchStockBackfillService;
 import dev.eolmae.marketmonitor.external.telegram.TelegramClient;
 import dev.eolmae.marketmonitor.domain.stock.StockMaster;
 import dev.eolmae.marketmonitor.domain.stock.repository.StockMasterRepository;
@@ -30,6 +31,7 @@ public class WatchStockBotHandler {
     private final StockMasterRepository stockMasterRepository;
     private final WatchStockRepository watchStockRepository;
     private final AppUserRepository appUserRepository;
+    private final WatchStockBackfillService watchStockBackfillService;
 
     private final ConcurrentHashMap<String, ConversationState> conversationStates = new ConcurrentHashMap<>();
 
@@ -112,6 +114,8 @@ public class WatchStockBotHandler {
         telegramClient.sendMessage(chatId,
             String.format("관심종목에 추가되었습니다: %s (%s)", stock.getStockName(), stock.getStockCode()));
         log.info("관심종목 등록: userKey={}, stockCode={}", user.getUserKey(), stock.getStockCode());
+
+        watchStockBackfillService.backfill(stock.getStockCode());
     }
 
     private void deleteWatchStock(String chatId, String input) {

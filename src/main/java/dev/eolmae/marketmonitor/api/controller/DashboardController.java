@@ -145,10 +145,8 @@ public class DashboardController {
 
 	@GetMapping("/stocks/{stockCode}/short-selling")
 	public StockHistoryResponse<ShortSellingHistoryItem> getShortSellingHistory(
-		@PathVariable String stockCode,
-		@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-		@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+		@PathVariable String stockCode
 	) {
-		return queryService.getShortSellingHistory(stockCode, from, to);
+		return queryService.getShortSellingHistory(stockCode);
 	}
 }

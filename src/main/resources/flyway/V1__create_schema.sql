@@ -147,22 +147,43 @@ CREATE TABLE program_trading_daily (
     CONSTRAINT fk_program_trading_daily_stock FOREIGN KEY (stock_code) REFERENCES stock_master (stock_code)
 );
 
-CREATE TABLE short_selling_history (
+CREATE TABLE short_selling_daily (
     id BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
     stock_code VARCHAR(20) NOT NULL,
     trade_date DATE NOT NULL,
+    close_price DECIMAL(19,2) NOT NULL,
+    price_change DECIMAL(19,2) NOT NULL,
+    change_rate DECIMAL(9,4) NOT NULL,
+    trading_volume BIGINT NOT NULL,
     short_volume BIGINT NOT NULL,
-    short_amount DECIMAL(19,2) NOT NULL,
+    cumulative_short_volume BIGINT NOT NULL,
     short_ratio DECIMAL(9,4) NOT NULL,
-    short_balance_volume BIGINT NOT NULL DEFAULT 0,
-    short_avg_price DECIMAL(19,4) NOT NULL DEFAULT 0,
-    close_price DECIMAL(19,4) NOT NULL DEFAULT 0,
-    price_change DECIMAL(19,4) NOT NULL DEFAULT 0,
-    change_rate DECIMAL(9,4) NOT NULL DEFAULT 0,
+    short_amount DECIMAL(19,2) NOT NULL,
+    short_avg_price DECIMAL(19,2) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT pk_short_selling_history PRIMARY KEY (id),
-    CONSTRAINT uk_short_selling_history UNIQUE (stock_code, trade_date),
-    CONSTRAINT fk_short_selling_history_stock FOREIGN KEY (stock_code) REFERENCES stock_master (stock_code)
+    CONSTRAINT pk_short_selling_daily PRIMARY KEY (id),
+    CONSTRAINT uk_short_selling_daily UNIQUE (stock_code, trade_date),
+    CONSTRAINT fk_short_selling_daily_stock FOREIGN KEY (stock_code) REFERENCES stock_master (stock_code)
+);
+
+CREATE TABLE short_selling_snapshot (
+    id BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
+    stock_code VARCHAR(20) NOT NULL,
+    trade_date DATE NOT NULL,
+    snapshot_time TIMESTAMP NOT NULL,
+    close_price DECIMAL(19,2) NOT NULL,
+    price_change DECIMAL(19,2) NOT NULL,
+    change_rate DECIMAL(9,4) NOT NULL,
+    trading_volume BIGINT NOT NULL,
+    short_volume BIGINT NOT NULL,
+    cumulative_short_volume BIGINT NOT NULL,
+    short_ratio DECIMAL(9,4) NOT NULL,
+    short_amount DECIMAL(19,2) NOT NULL,
+    short_avg_price DECIMAL(19,2) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_short_selling_snapshot PRIMARY KEY (id),
+    CONSTRAINT uk_short_selling_snapshot UNIQUE (stock_code, snapshot_time),
+    CONSTRAINT fk_short_selling_snapshot_stock FOREIGN KEY (stock_code) REFERENCES stock_master (stock_code)
 );
 
 CREATE TABLE index_contribution_ranking_snapshot (
@@ -186,5 +207,6 @@ CREATE INDEX idx_intraday_investor_ranking_snapshot_time ON intraday_investor_ra
 CREATE INDEX idx_program_trading_ranking_snapshot_time ON program_trading_ranking_snapshot (snapshot_time);
 CREATE INDEX idx_program_trading_history_stock_time ON program_trading_history (stock_code, snapshot_time DESC);
 CREATE INDEX idx_program_trading_daily_stock_date ON program_trading_daily (stock_code, trade_date DESC);
-CREATE INDEX idx_short_selling_history_stock_date ON short_selling_history (stock_code, trade_date DESC);
+CREATE INDEX idx_short_selling_daily_stock_date ON short_selling_daily (stock_code, trade_date DESC);
+CREATE INDEX idx_short_selling_snapshot_stock_time ON short_selling_snapshot (stock_code, snapshot_time DESC);
 CREATE INDEX idx_index_contribution_ranking_snapshot_time ON index_contribution_ranking_snapshot (snapshot_time);

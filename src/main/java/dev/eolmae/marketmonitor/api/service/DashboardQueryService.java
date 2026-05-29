@@ -30,7 +30,8 @@ import dev.eolmae.marketmonitor.domain.dashboard.repository.MarketOverviewSnapsh
 import dev.eolmae.marketmonitor.domain.dashboard.repository.ProgramTradingRankingSnapshotRepository;
 import dev.eolmae.marketmonitor.domain.history.repository.ProgramTradingDailyHistoryRepository;
 import dev.eolmae.marketmonitor.domain.history.repository.ProgramTradingHistoryRepository;
-import dev.eolmae.marketmonitor.domain.history.repository.ShortSellingHistoryRepository;
+import dev.eolmae.marketmonitor.domain.history.repository.ShortSellingDailyHistoryRepository;
+import dev.eolmae.marketmonitor.domain.history.repository.ShortSellingSnapshotRepository;
 import dev.eolmae.marketmonitor.domain.stock.repository.StockMasterRepository;
 import dev.eolmae.marketmonitor.domain.stock.repository.WatchStockRepository;
 import dev.eolmae.marketmonitor.domain.user.repository.UserNotificationSettingRepository;
@@ -61,7 +62,8 @@ public class DashboardQueryService {
 	private final UserNotificationSettingRepository userNotificationSettingRepository;
 	private final ProgramTradingHistoryRepository programTradingHistoryRepository;
 	private final ProgramTradingDailyHistoryRepository programTradingDailyHistoryRepository;
-	private final ShortSellingHistoryRepository shortSellingHistoryRepository;
+	private final ShortSellingDailyHistoryRepository shortSellingDailyHistoryRepository;
+	private final ShortSellingSnapshotRepository shortSellingSnapshotRepository;
 
 	public DashboardQueryService(
 		MarketOverviewSnapshotRepository marketOverviewSnapshotRepository,
@@ -74,7 +76,8 @@ public class DashboardQueryService {
 		UserNotificationSettingRepository userNotificationSettingRepository,
 		ProgramTradingHistoryRepository programTradingHistoryRepository,
 		ProgramTradingDailyHistoryRepository programTradingDailyHistoryRepository,
-		ShortSellingHistoryRepository shortSellingHistoryRepository
+		ShortSellingDailyHistoryRepository shortSellingDailyHistoryRepository,
+		ShortSellingSnapshotRepository shortSellingSnapshotRepository
 	) {
 		this.marketOverviewSnapshotRepository = marketOverviewSnapshotRepository;
 		this.investorTradingSummarySnapshotRepository = investorTradingSummarySnapshotRepository;
@@ -86,7 +89,8 @@ public class DashboardQueryService {
 		this.userNotificationSettingRepository = userNotificationSettingRepository;
 		this.programTradingHistoryRepository = programTradingHistoryRepository;
 		this.programTradingDailyHistoryRepository = programTradingDailyHistoryRepository;
-		this.shortSellingHistoryRepository = shortSellingHistoryRepository;
+		this.shortSellingDailyHistoryRepository = shortSellingDailyHistoryRepository;
+		this.shortSellingSnapshotRepository = shortSellingSnapshotRepository;
 	}
 
 	public DashboardResponse getDashboard() {
@@ -284,24 +288,37 @@ public class DashboardQueryService {
 		return new StockHistoryResponse<>(stockCode, items);
 	}
 
-	public StockHistoryResponse<ShortSellingHistoryItem> getShortSellingHistory(
-		String stockCode, LocalDate from, LocalDate to
-	) {
-		var items = shortSellingHistoryRepository
-			.findByStockCodeAndTradeDateBetweenOrderByTradeDateAsc(stockCode, from, to)
+	/** 공매도 추이 최신 10건 반환 — 과거 일별 확정 + 오늘 최신 스냅샷 합산 후 날짜 내림차순 */
+	public StockHistoryResponse<ShortSellingHistoryItem> getShortSellingHistory(String stockCode) {
+		LocalDate today = LocalDate.now();
+
+		var dailyItems = shortSellingDailyHistoryRepository
+			.findByStockCodeOrderByTradeDateDesc(stockCode)
 			.stream().map(item -> new ShortSellingHistoryItem(
-				item.getTradeDate(),
-				item.getShortVolume(),
-				item.getShortBalanceVolume(),
-				item.getShortAmount(),
-				item.getShortAvgPrice(),
-				item.getShortRatio(),
-				item.getClosePrice(),
-				item.getPriceChange(),
-				item.getChangeRate()
+				item.getTradeDate(), null,
+				item.getClosePrice(), item.getPriceChange(), item.getChangeRate(),
+				item.getTradingVolume(), item.getShortVolume(), item.getCumulativeShortVolume(),
+				item.getShortRatio(), item.getShortAmount(), item.getShortAvgPrice()
 			)).toList();
 
-		return new StockHistoryResponse<>(stockCode, items);
+		var todaySnapshots = shortSellingSnapshotRepository
+			.findByStockCodeAndTradeDateOrderBySnapshotTimeDesc(stockCode, today);
+
+		java.util.List<ShortSellingHistoryItem> allItems = new java.util.ArrayList<>();
+
+		if (!todaySnapshots.isEmpty()) {
+			var latest = todaySnapshots.get(0);
+			allItems.add(new ShortSellingHistoryItem(
+				latest.getTradeDate(), latest.getSnapshotTime(),
+				latest.getClosePrice(), latest.getPriceChange(), latest.getChangeRate(),
+				latest.getTradingVolume(), latest.getShortVolume(), latest.getCumulativeShortVolume(),
+				latest.getShortRatio(), latest.getShortAmount(), latest.getShortAvgPrice()
+			));
+		}
+
+		allItems.addAll(dailyItems);
+
+		return new StockHistoryResponse<>(stockCode, allItems.stream().limit(10).toList());
 	}
 
 	/**
