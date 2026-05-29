@@ -40,7 +40,7 @@ out/
 .gradle-user-home/
 
 ### Claude Code ###
-.claude/settings.local.json
+.claude/
 CLAUDE.md
 
 ### env files ###

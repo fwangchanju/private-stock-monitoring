@@ -1,6 +1,10 @@
 package dev.eolmae.marketmonitor.collector;
 
+import dev.eolmae.marketmonitor.common.enums.MarketType;
 import dev.eolmae.marketmonitor.common.util.NumberParser;
+import dev.eolmae.marketmonitor.domain.dashboard.IndexContributionRankingSnapshot;
+import dev.eolmae.marketmonitor.domain.dashboard.repository.IndexContributionRankingSnapshotRepository;
+import dev.eolmae.marketmonitor.domain.dashboard.repository.MarketOverviewSnapshotRepository;
 import dev.eolmae.marketmonitor.external.kiwoom.client.KiwoomApiClient;
 import dev.eolmae.marketmonitor.external.kiwoom.dto.Ka10051Request;
 import dev.eolmae.marketmonitor.external.kiwoom.dto.Ka10051Response;
@@ -14,6 +18,7 @@ import dev.eolmae.marketmonitor.external.kiwoom.dto.Ka90008Request;
 import dev.eolmae.marketmonitor.external.kiwoom.dto.Ka90008Response;
 import dev.eolmae.marketmonitor.external.kiwoom.dto.Ka90013Request;
 import dev.eolmae.marketmonitor.external.kiwoom.dto.Ka90013Response;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -25,9 +30,12 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
+
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Kiwoom API 응답 내용 확인용 테스트 — KRX 데이터마켓 대체 가능 여부 검토
@@ -55,8 +63,23 @@ class KiwoomApiVerificationTest {
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
+    @Value("${krx.login-id:}")
+    String krxLoginId;
+
     @Autowired
     KiwoomApiClient kiwoomApiClient;
+
+    @Autowired
+    MarketOverviewCollector marketOverviewCollector;
+
+    @Autowired
+    IndexContributionRankingCollector indexContributionRankingCollector;
+
+    @Autowired
+    IndexContributionRankingSnapshotRepository indexContributionRankingSnapshotRepository;
+
+    @Autowired
+    MarketOverviewSnapshotRepository marketOverviewSnapshotRepository;
 
     /**
      * ka20001 — 업종현재가요청 (시장종합 대시보드)
@@ -274,7 +297,115 @@ class KiwoomApiVerificationTest {
      *   - 장중(ka90008): 당일 시간별 틱 수 확인
      *   - 일별(ka90013): 최근 일별 데이터 확인
      */
+    /**
+     * ka10014 — 공매도추이요청
+     *
+     * 확인 포인트:
+     *   - 관심종목 개별 호출 시 응답 필드 확인 (종가, 대비, 등락률, 거래량, 공매도수량 등)
+     *   - 장중 실시간 갱신 여부 — 같은 날 다른 시간에 호출 시 당일 수치 변화 확인
+     *     → 달라지면: 매시간 수집(08:00~20:00) 확정
+     *     → 안 달라지면: 다른 실시간 데이터소스 탐색 필요
+     */
+//    @Test
+    void ka10014_공매도추이() {
+        String today = LocalDate.now(KST).format(DATE_FMT);
+        String startDt = LocalDate.now(KST).minusDays(30).format(DATE_FMT);
+        String stockCode = "039490"; // 키움증권 (테스트용)
+
+        log.info("=== ka10014 공매도추이 | 현재시각={} ===", LocalDateTime.now(KST));
+
+        try {
+            var response = kiwoomApiClient.post(
+                new dev.eolmae.marketmonitor.external.kiwoom.dto.Ka10014Request(stockCode, "2", startDt, today),
+                dev.eolmae.marketmonitor.external.kiwoom.dto.Ka10014Response.class);
+
+            log.info("[ka10014] raw: {}", response);
+
+            if (response.ticks() == null || response.ticks().isEmpty()) {
+                log.info("[ka10014] 응답: 빈 배열");
+                return;
+            }
+
+            log.info("[ka10014] 응답 {}건", response.ticks().size());
+            response.ticks().forEach(tick ->
+                log.info("[ka10014] 일자={} 종가={} 대비={} 등락률={}% 거래량={} | 공매도수량={} 누적공매도량={} 매매비중={}% 거래대금={} 평균가={}",
+                    tick.dt(), tick.closePric(), tick.predPre(), tick.fluRt(), tick.trdeQty(),
+                    tick.shrtsQty(), tick.ovrShrtsQty(), tick.trdeWght(),
+                    tick.shrtsTrdePrica(), tick.shrtsAvgPric())
+            );
+
+            // 오늘 날짜 데이터 존재 여부 확인
+            response.ticks().stream()
+                .filter(t -> today.equals(t.dt() != null ? t.dt().trim() : ""))
+                .findFirst()
+                .ifPresentOrElse(
+                    t -> log.info("[ka10014] 오늘({}) 데이터 존재 → 장중 실시간 갱신 가능성 있음. 다른 시간대 재실행 후 수치 비교 필요", today),
+                    () -> log.info("[ka10014] 오늘({}) 데이터 없음 → 장 종료 후에만 당일 데이터 제공될 수 있음", today)
+                );
+
+        } catch (Exception e) {
+            log.warn("[ka10014] 예외 발생: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 지수기여도 수집기 검증 — KRX MDCSTAT01501 크롤링 기반
+     *
+     * 확인 포인트:
+     *   - KOSPI/KOSDAQ 각 상위 50종목 스냅샷 저장 확인
+     *   - 기여도 합산 검증: Σ(종목 기여도) ≈ 당일 지수 등락폭(pt)
+     *     → 일치하면 연산 공식 정합성 OK
+     *     → 편차 크면 유동시총 vs 전체시총 혼용 등 점검 필요
+     */
     @Test
+    void indexContributionRanking_수집_및_공식검증() {
+        assumeTrue(!krxLoginId.isBlank(), "KRX 로그인 정보 미설정 — KRX_ID/KRX_PW 환경변수 확인 후 재실행");
+
+        LocalDateTime snapshotTime = LocalDateTime.now(KST).withMinute(0).withSecond(0).withNano(0);
+        log.info("=== 지수기여도 수집 시작 | snapshotTime={} ===", snapshotTime);
+
+        // IndexContributionRankingCollector가 전일 지수값 역산에 MarketOverviewSnapshot을 사용하므로 선행 수집 필요
+        if (marketOverviewSnapshotRepository.count() == 0) {
+            log.info("MarketOverviewSnapshot 없음 → 선행 수집 실행");
+            marketOverviewCollector.collect(snapshotTime);
+        }
+
+        indexContributionRankingCollector.collect(snapshotTime);
+
+        for (MarketType market : MarketType.storableValues()) {
+            List<IndexContributionRankingSnapshot> snapshots =
+                indexContributionRankingSnapshotRepository
+                    .findBySnapshotTimeAndMarketTypeOrderByRankAsc(snapshotTime, market);
+
+            log.info("[{}] 저장 건수={}", market, snapshots.size());
+
+            BigDecimal sumContribution = snapshots.stream()
+                .map(IndexContributionRankingSnapshot::getContributionScore)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            log.info("[{}] 상위 {}종목 기여도 합산={}", market, snapshots.size(), sumContribution);
+
+            // 실제 지수 등락폭과 비교 (MarketOverviewSnapshot의 changeValue)
+            marketOverviewSnapshotRepository.findTopByMarketTypeOrderBySnapshotTimeDesc(market)
+                .ifPresent(overview -> log.info(
+                    "[{}] 실제 지수등락={} | 기여도합산={} | 편차={}",
+                    market,
+                    overview.getChangeValue(),
+                    sumContribution,
+                    sumContribution.subtract(overview.getChangeValue()).abs()
+                ));
+
+            if (!snapshots.isEmpty()) {
+                log.info("[{}] 상위 5종목:", market);
+                snapshots.stream().limit(5).forEach(s ->
+                    log.info("  {}위 {} {} 기여도={} 등락률={}%",
+                        s.getRank(), s.getStockCode(), s.getStockName(),
+                        s.getContributionScore(), s.getPriceChangeRate()));
+            }
+        }
+    }
+
+//    @Test
     void ka90008_ka90013_종목별프로그램매매추이() {
         String today = LocalDate.now(KST).format(DATE_FMT);
         log.info("=== ka90008/ka90013 종목별프로그램매매추이 | 현재시각={} ===", LocalDateTime.now(KST));
